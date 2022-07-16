@@ -459,14 +459,14 @@ class Aliceblue:
 
     def search_instruments(self,exchange, symbol):
 
-        scrip_Url = "https://zebull.in/rest/MobullService/exchange/getScripForSearch"
+        scrip_Url = "https://a3.aliceblueonline.com/rest/MobullService/exchange/getScripForSearch"
         data = {'symbol': symbol, 'exchange': [exchange]}
         scrip_response = self._dummypost(scrip_Url, data)
         return scrip_response
 
     def get_instrument_by_symbol(self,exchange, symbol):
 
-        scrip_Url = "https://zebull.in/rest/MobullService/exchange/getScripForSearch"
+        scrip_Url = "https://a3.aliceblueonline.com/rest/MobullService/exchange/getScripForSearch"
         data = {'symbol': symbol, 'exchange': [exchange]}
         scrip_response = self._dummypost(scrip_Url, data)
         if len(scrip_response)>=1:
