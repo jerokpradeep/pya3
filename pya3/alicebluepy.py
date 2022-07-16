@@ -94,8 +94,7 @@ class Aliceblue:
         "holding": "positionAndHoldings/holdings",
         "orderhistory": "placeOrder/orderHistory",
         "cancelorder": "placeOrder/cancelOrder",
-        "profile":"customer/accountDetails",
-
+        "profile": "customer/accountDetails",
         # Funds
         "fundsrecord": "limits/getRmsLimits",
 
