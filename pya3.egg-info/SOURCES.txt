@@ -1,0 +1,10 @@
+LICENSE.txt
+README.md
+setup.py
+pya3/__init__.py
+pya3/alicebluepy.py
+pya3.egg-info/PKG-INFO
+pya3.egg-info/SOURCES.txt
+pya3.egg-info/dependency_links.txt
+pya3.egg-info/requires.txt
+pya3.egg-info/top_level.txt
