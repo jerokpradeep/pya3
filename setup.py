@@ -9,7 +9,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="pya3",
-    version="1.0.3",
+    version="1.0.4",
     author="Codifi",
     author_email="pradeep@codifi.in",
     description="Official Python SDK for Alice Blue API",
