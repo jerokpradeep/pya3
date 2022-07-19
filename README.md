@@ -31,7 +31,7 @@ pip --no-cache-dir install --upgrade pya3
 
 ### Prerequisites
 
-Python 3.x
+Python >=3.7
 
 [//]: # (Also, you need the following modules:)
 
@@ -103,7 +103,7 @@ alice = Aliceblue(user_id='username',api_key='API_KEY')
 print(alice.get_session_id()) # Get Session ID
 ```
 
-2. You can run commands here to check your connectivity
+3. You can run commands here to check your connectivity
 ```python
 print(alice.get_balance()) # get balance / margin limits
 print(alice.get_profile()) # get profile
@@ -167,15 +167,7 @@ all_sensex_scrips = alice.search_instruments('BSE', 'sEnSeX')
 print(all_sensex_scrips)
 ```
 The above code results multiple symbol which has 'sensex' in its symbol.
-```
-[Instrument(exchange='BSE', token=1, symbol='SENSEX', name='SENSEX', expiry=None, lot_size=None), Instrument(exchange='BSE', token=540154, symbol='IDFSENSEXE B', name='IDFC Mutual Fund', expiry=None, lot_size=None), Instrument(exchange='BSE', token=532985, symbol='KTKSENSEX B', name='KOTAK MAHINDRA MUTUAL FUND', expiry=None, lot_size=None), Instrument(exchange='BSE', token=538683, symbol='NETFSENSEX B', name='NIPPON INDIA ETF SENSEX', expiry=None, lot_size=None), Instrument(exchange='BSE', token=535276, symbol='SBISENSEX B', name='SBI MUTUAL FUND - SBI ETF SENS', expiry=None, lot_size=None)]
-```
 
-Search for multiple instruments by matching multiple names
-```python
-multiple_underlying = ['BANKNIFTY','NIFTY','INFY','BHEL']
-all_scripts = alice.search_instruments('NFO', multiple_underlying)
-```
 
 [//]: # (#### Instrument object)
 

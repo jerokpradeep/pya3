@@ -155,7 +155,11 @@ class Aliceblue:
                 response = requests.post(method, json=data, headers=_headers, )
             except (requests.ConnectionError, requests.Timeout) as exception:
                 return {'stat':'Not_ok','emsg':'Please Check the Internet connection.','encKey':None}
-            return json.loads(response.text)
+            if response.status_code == 200:
+                return json.loads(response.text)
+            else:
+                emsg=str(response.status_code)+' - '+response.reason
+                return {'stat':'Not_ok','emsg':emsg,'encKey':None}
 
         elif req_type == "GET":
             try:
@@ -206,9 +210,13 @@ class Aliceblue:
         return orderresp
 
     def get_order_history(self, nextorder):
-        data = {'nestOrderNumber': nextorder}
-        orderhistoryresp = self._post("orderhistory", data)
-        return orderhistoryresp
+        if nextorder == '':
+            orderresp = self._get("orderbook")
+            return orderresp
+        else:
+            data = {'nestOrderNumber': nextorder}
+            orderhistoryresp = self._post("orderhistory", data)
+            return orderhistoryresp
 
     """Method to call Cancel Orders"""
     def cancel_order(self, exchange,
@@ -464,20 +472,23 @@ class Aliceblue:
 
     def search_instruments(self,exchange, symbol):
 
-        scrip_Url = "https://a3.aliceblueonline.com/rest/MobullService/exchange/getScripForSearch"
+        scrip_Url = "https://a3.aliceblueonline.com/rest/DataApiService/v2/exchange/getScripForSearch"
         data = {'symbol': symbol, 'exchange': [exchange]}
         scrip_response = self._dummypost(scrip_Url, data)
         return scrip_response
 
     def get_instrument_by_symbol(self,exchange, symbol):
 
-        scrip_Url = "https://a3.aliceblueonline.com/rest/MobullService/exchange/getScripForSearch"
-        data = {'symbol': symbol, 'exchange': [exchange]}
+        scrip_Url = "https://a3.aliceblueonline.com/rest/DataApiService/v2/exchange/getScripForSearch"
+        data = {'symbol': symbol, 'exchange': ['ALL']}
         scrip_response = self._dummypost(scrip_Url, data)
-        if len(scrip_response)>=1:
-            return scrip_response[0]
+        if 'stat' in scrip_response:
+            return scrip_response['emsg']
         else:
-            return scrip_response
+            if len(scrip_response)>=1:
+                return scrip_response[0]
+            else:
+                return scrip_response
 
     def place_basket_order(self,orders):
         data=[]
