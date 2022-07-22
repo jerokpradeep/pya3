@@ -435,7 +435,7 @@ print(alice.get_order_history('170713000075481'))
 
 #### Get order history of all orders.
 ```python
-print(alice.get_order_history())
+print(alice.get_order_history(''))
 ```
 
 #### Get trade book
