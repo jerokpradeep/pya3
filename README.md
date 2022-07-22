@@ -53,7 +53,7 @@ separately for re-use.
 
 ### REST Documentation
 The original REST API that this SDK is based on is available online.
-   [Alice Blue API REST documentation](http://antplus.aliceblueonline.com/#introduction)
+   [Alice Blue API REST documentation](https://v2api.aliceblueonline.com)
 
 ## Using the API
 

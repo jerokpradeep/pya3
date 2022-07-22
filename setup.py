@@ -9,7 +9,7 @@ with open("README.md", "r") as f:
 
 setup(
     name="pya3",
-    version="1.0.7",
+    version="1.0.9",
     author="Codifi",
     author_email="pradeep@codifi.in",
     description="Official Python SDK for Alice Blue API",
@@ -20,7 +20,7 @@ setup(
     url="https://a3.aliceblueonline.com/",
     # downloadable_url="https://github.com/jerokpradeep/pythonZebullAPI",
     packages=["pya3"],
-    install_requires=["requests"],
+    install_requires=["requests","pandas","websocket-client","rel"],
     classifiers=[
         "Programming Language :: Python :: 3.9",
         "License :: OSI Approved :: MIT License",

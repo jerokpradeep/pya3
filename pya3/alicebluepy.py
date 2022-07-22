@@ -2,6 +2,18 @@ import requests
 import json
 import hashlib
 import enum
+import logging
+import pandas as pd
+from datetime import time,datetime
+from collections import namedtuple
+import os
+import websocket
+import rel
+
+logger = logging.getLogger(__name__)
+
+Instrument = namedtuple('Instrument', ['exchange', 'token', 'symbol','name', 'expiry', 'lot_size'])
+
 
 class TransactionType(enum.Enum):
     Buy = 'BUY'
@@ -13,13 +25,11 @@ class OrderType(enum.Enum):
     StopLossLimit = 'SL'
     StopLossMarket = 'SL-M'
 
-
 class ProductType(enum.Enum):
     Intraday = 'MIS'
     Delivery = 'CNC'
     CoverOrder = 'CO'
     BracketOrder = 'BO'
-
 
 def encrypt_string(hashing):
     sha = hashlib.sha256(hashing.encode()).hexdigest()
@@ -29,7 +39,8 @@ class Aliceblue:
     # BASE_URL
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.2.1"
+    version = "1.0.7"
+    base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
     PRODUCT_INTRADAY = "MIS"
@@ -64,6 +75,9 @@ class Aliceblue:
     STATUS_COMPLETE = "COMPLETE"
     STATUS_REJECTED = "REJECTED"
     STATUS_CANCELLED = "CANCELLED"
+    ENC = None
+    ws = None
+    subscriptions = None
 
     # response = requests.get(base_url);
     # Getscrip URI
@@ -97,6 +111,8 @@ class Aliceblue:
         "profile": "customer/accountDetails",
         # Funds
         "fundsrecord": "limits/getRmsLimits",
+        # Websockey
+        "base_url_socket" :"wss://ws1.aliceblueonline.com/NorenWS/"
 
     }
 
@@ -256,13 +272,13 @@ class Aliceblue:
         return deletescripsresp
 
     """Method to call Scrip Details"""
-    def get_instrument_by_token(self,
-                       exchange,
-                       token):
-        data = {'exch': exchange,
-                'symbol': token}
-        scripsdetailresp = self._post("scripdetails", data)
-        return scripsdetailresp
+    # def get_instrument_by_token(self,
+    #                    exchange,
+    #                    token):
+    #     data = {'exch': exchange,
+    #             'symbol': token}
+    #     scripsdetailresp = self._post("scripdetails", data)
+    #     return scripsdetailresp
 
     """Method to call Squareoff Positions"""
     def squareoff_positions(self,
@@ -464,7 +480,7 @@ class Aliceblue:
         positionbookresp = self._post("positiondata", data)
         return positionbookresp
 
-    def get_netwise_positions(self):
+    def get_netwise_positions(self,):
         data = {'ret': 'NET' }
         positionbookresp = self._post("positiondata", data)
         return positionbookresp
@@ -477,18 +493,18 @@ class Aliceblue:
         scrip_response = self._dummypost(scrip_Url, data)
         return scrip_response
 
-    def get_instrument_by_symbol(self,exchange, symbol):
-
-        scrip_Url = "https://a3.aliceblueonline.com/rest/DataApiService/v2/exchange/getScripForSearch"
-        data = {'symbol': symbol, 'exchange': ['ALL']}
-        scrip_response = self._dummypost(scrip_Url, data)
-        if 'stat' in scrip_response:
-            return scrip_response['emsg']
-        else:
-            if len(scrip_response)>=1:
-                return scrip_response[0]
-            else:
-                return scrip_response
+    # def get_instrument_by_symbol(self,exchange, symbol):
+    #
+    #     scrip_Url = "https://a3.aliceblueonline.com/rest/DataApiService/v2/exchange/getScripForSearch"
+    #     data = {'symbol': symbol, 'exchange': ['ALL']}
+    #     scrip_response = self._dummypost(scrip_Url, data)
+    #     if 'stat' in scrip_response:
+    #         return scrip_response['emsg']
+    #     else:
+    #         if len(scrip_response)>=1:
+    #             return scrip_response[0]
+    #         else:
+    #             return scrip_response
 
     def place_basket_order(self,orders):
         data=[]
@@ -537,3 +553,238 @@ class Aliceblue:
         # print(data)
         placeorderresp = self._post("placeorder", data)
         return placeorderresp
+
+    def get_contract_master(self,exchange):
+        if len(exchange) == 3:
+            print("NOTE: Today's contract master file will be updated after 08:00 AM. Before 08:00 AM previous day contract file be downloaded.")
+            if time(8,00) <= datetime.now().time():
+                url= self.base_url_c % exchange.upper()
+                response = requests.get(url)
+                with open("%s.csv"% exchange.upper(), "w") as f:
+                    f.write(response.text)
+                return {"stat":"ok","msg":"Today contract File Downloaded"}
+            else:
+                return {"stat":"ok","msg":"Previous day contract file saved"}
+        elif exchange is None:
+            return {"stat": "Not_ok", "emsg": "Invalid Exchange parameter"}
+        else:
+            return {"stat":"Not_ok","emsg":"Invalid Exchange parameter"}
+
+    def get_instrument_by_symbol(self,exchange, symbol):
+        try:
+            contract = pd.read_csv("%s.csv" % exchange)
+            filter_contract = contract[contract['symbol'] == symbol.upper()]
+            if len(filter_contract) == 0:
+                return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
+            else:
+                filter_contract = filter_contract.reset_index()
+                if 'expiry_date' in filter_contract:
+                    inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0], filter_contract['symbol'][0], filter_contract['trading_symbol'][0], filter_contract['expiry_date'][0],filter_contract['lot_size'][0])
+                else:
+                    inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0],filter_contract['symbol'][0], filter_contract['trading_symbol'][0],'', filter_contract['lot_size'][0])
+                return inst
+        except OSError as e:
+            if e.errno == 2:
+                return {"stat": "Not_ok", "emsg": "Contract master is not available."}
+            else:
+                return {"stat":"Not_ok","emsg":e}
+
+    def get_instrument_by_token(self,exchange, token):
+        try:
+            contract = pd.read_csv("%s.csv" % exchange)
+            filter_contract = contract[contract['Token'] == token]
+            if len(filter_contract) == 0:
+                return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
+            else:
+                filter_contract = filter_contract.reset_index()
+                if 'expiry_date' in filter_contract:
+                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0], filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0], filter_contract['Expiry Date'][0],filter_contract['Lot Size'][0])
+                else:
+                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0],filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0],'', filter_contract['Lot Size'][0])
+                return inst
+        except OSError as e:
+            if e.errno == 2:
+                return {"stat": "Not_ok", "emsg": "Contract master is not available."}
+            else:
+                return {"stat":"Not_ok","emsg":e}
+
+    def get_instrument_for_fno(self,exch,symbol, expiry_date,is_fut=True,strike=None,is_CE = False):
+        # print(exch)
+        if exch in ['NFO','CDS','MCX','BFO','BCD']:
+            pass
+        else:
+            return {"stat":"Not_ok","emsg":"Invalid exchange"}
+        if not symbol:
+            return {"stat": "Not_ok", "emsg": "Symbol is Null"}
+        try:
+            expiry_date=datetime.strptime(expiry_date, "%d-%m-%Y").date()
+        except ValueError as e:
+            return {"stat": "Not_ok", "emsg": e}
+        if type(is_CE) is bool:
+            if is_CE == True:
+                option_type="CE"
+            else:
+                option_type="PE"
+        else:
+            return {"stat": "Not_ok", "emsg": "is_fut is not boolean value"}
+        # print(option_type)
+        try:
+            contract = pd.read_csv("%s.csv" % exch)
+            # print(strike,is_fut)
+            if is_fut == False:
+                if strike:
+                    filter_contract = contract[(contract['exch'] == exch)&(contract['symbol'] == symbol)&(contract['option_type'] == option_type)&(contract['strike_price'] == strike)&(contract['expiry_date'] == expiry_date.strftime('%Y-%m-%d'))]
+                else:
+                    filter_contract = contract[(contract['exch'] == exch)&(contract['symbol'] == symbol)&(contract['option_type'] == option_type)&(contract['expiry_date'] == expiry_date.strftime('%Y-%m-%d'))]
+            if is_fut == True:
+                if strike == None:
+                    filter_contract = contract[(contract['exch'] == exch)&(contract['symbol'] == symbol)&(contract['option_type'] == 'XX')&(contract['strike_price'] == 0)&(contract['expiry_date'] == expiry_date.strftime('%Y-%m-%d'))]
+                else:
+                    return {"stat": "Not_ok", "emsg": "No strike price for future"}
+            # print(len(filter_contract))
+            if len(filter_contract) == 0:
+                return {"stat": "Not_ok", "emsg": "No Data"}
+            else:
+                inst=[]
+                filter_contract = filter_contract.reset_index()
+                for i in range(len(filter_contract)):
+                    inst.append(Instrument(filter_contract['exch'][i], filter_contract['token'][i], filter_contract['symbol'][i], filter_contract['trading_symbol'][i], filter_contract['expiry_date'][i],filter_contract['lot_size'][i]))
+                return inst
+        except OSError as e:
+            if e.errno == 2:
+                return {"stat": "Not_ok", "emsg": "Contract master is not available."}
+            else:
+                return {"stat":"Not_ok","emsg":e}
+
+    def get_sessionu(self):
+        BASEURL = 'https://a3uat.aliceblueonline.com/rest/AliceBlueAPIService'
+        url = BASEURL + "/api/customer/getAPIEncpkey"
+
+        payload = json.dumps({
+            "userId": self.user_id
+        })
+        headers = {
+            'Content-Type': 'application/json'
+        }
+
+        response = requests.request("POST", url, headers=headers, data=payload)
+        data = response.json()
+        # print(data)
+        if 'encKey' in data and data['encKey']:
+            encKey = data['encKey']
+            url = BASEURL + "/api/customer/getUserSID"
+            key = self.user_id + self.api_key + encKey
+            hash = hashlib.sha256(key.encode('utf-8')).hexdigest()
+            payload = json.dumps({
+                "userId": self.user_id,
+                "userData": hash
+            })
+            headers = {
+                'Content-Type': 'application/json'
+            }
+
+            response = requests.request("POST", url, headers=headers, data=payload)
+            # print(response.text)
+            return response.json()
+        else:
+            return response.json()
+
+    def invalid_sess(self,session_ID):
+        BASEURL = 'https://a3uat.aliceblueonline.com/rest/AliceBlueAPIService'
+        url = BASEURL + '/api/ws/invalidateWsSession'
+        headers = {
+            'Authorization': 'Bearer ' + self.user_id + ' ' + session_ID,
+            'Content-Type': 'application/json'
+        }
+        payload = {"loginType": "API"}
+        datas = json.dumps(payload)
+        response = requests.request("POST", url, headers=headers, data=datas)
+        return response.json()
+
+    def createSession(self,session_ID):
+        BASEURL = 'https://a3uat.aliceblueonline.com/rest/AliceBlueAPIService'
+        url = BASEURL + '/api/ws/createWsSession'
+
+        headers = {
+            'Authorization': 'Bearer ' + self.user_id + ' ' + session_ID,
+            'Content-Type': 'application/json'
+        }
+        payload = {"loginType": "API"}
+        datas = json.dumps(payload)
+        response = requests.request("POST", url, headers=headers, data=datas)
+
+        # print(response.text)
+        return response.json()
+
+    def on_message(self,ws, message):
+        print(message)
+        data = json.loads(message)
+        if 's' in data and data['s'] == 'OK':
+            print("Socket Connected.")
+            data = {
+                "k": self.subscriptions,
+                "t": 't',
+                "m": "compact_marketdata"
+            }
+            ws.send(json.dumps(data))
+
+    def on_error(self,ws, error):
+        print(error)
+
+    def on_close(self,ws, close_status_code, close_msg):
+        print("### closed ###")
+
+    def on_open(self,ws):
+        initCon = {
+            "susertoken": self.ENC,
+            "t": "c",
+            "actid": self.user_id + "_API",
+            "uid": self.user_id + "_API",
+            "source": "API"
+        }
+        print(initCon)
+        self.ws.send(json.dumps(initCon))
+        # ws.send(initCon)
+
+    def start_websocket(self,script_subscription):
+        session_request=self.get_sessionu()
+        if 'sessionID' in session_request:
+            self.subscriptions= script_subscription
+            session_id = session_request['sessionID']
+            sha256_encryption1 = hashlib.sha256(session_id.encode('utf-8')).hexdigest()
+            self.ENC = hashlib.sha256(sha256_encryption1.encode('utf-8')).hexdigest()
+            invalidSess = self.invalid_sess(session_id)
+            if invalidSess['stat']=='Ok':
+                print("STAGE 1: invalidSess :",invalidSess['stat'])
+                createSess = self.createSession(session_id)
+                if createSess['stat']=='Ok':
+                    print("STAGE 2: createSess :", createSess['stat'])
+                    print("Connecting Socket ...")
+                    websocket.enableTrace(False)
+                    self.ws = websocket.WebSocketApp(self._sub_urls['base_url_socket'],
+                                                on_open=self.on_open,
+                                                on_message=self.on_message,
+                                                on_close=self.on_close,
+                                                on_error=self.on_error)
+                    self.ws.run_forever(dispatcher=rel)  # Set dispatcher to automatic reconnection
+                    rel.signal(2, rel.abort)  # Keyboard Interrupt
+                    rel.dispatch()
+
+
+
+class Alice_Wrapper():
+    def open_net_position(Net_position):
+        open_net_position = [data for data in Net_position if data['Netqty'] != '0']
+        return open_net_position
+
+    def close_net_poition(Net_position):
+        close_net_position = [data for data in Net_position if data['Netqty'] == '0']
+        return close_net_position
+
+    def subscription(script_list):
+        if len(script_list) > 0:
+            sub_prams=''
+            for i in range(len(script_list)):
+                end_point = '' if i == len(script_list)-1 else '#'
+                sub_prams=sub_prams+script_list[i].exchange+'|'+str(script_list[0].token)+end_point
+            return sub_prams
