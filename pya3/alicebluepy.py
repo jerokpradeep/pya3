@@ -38,7 +38,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.10"
+    version = "1.0.12"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -332,8 +332,8 @@ class Aliceblue:
             ret='IOC'
         else:
             ret='DAY'
-        trading_symbol=instrument.symbol
-        symbol_id=instrument.token
+        trading_symbol=instrument.name
+        symbol_id=str(instrument.token)
         transtype=transaction_type.value
         trigPrice=trigger_price
         # print("pCode:",instrument)
@@ -352,7 +352,7 @@ class Aliceblue:
                  "target": square_off,
                  "trailing_stop_loss": trailing_sl,
                  'trigPrice': trigPrice}]
-        # print(data)
+        print(data)
         placeorderresp = self._post("placeorder", data)
         return placeorderresp
 
@@ -427,7 +427,7 @@ class Aliceblue:
                 'prctyp': order_type,
                 'price': price,
                 'qty': quantity,
-                'trading_symbol': instrument.symbol,
+                'trading_symbol': instrument.name,
                 'trigPrice': trigger_price,
                 'transtype': transaction_type,
                 'pCode': product_type}
@@ -488,8 +488,8 @@ class Aliceblue:
                 ret = 'IOC'
             else:
                 ret = 'DAY'
-            trading_symbol = order_data['instrument'].symbol
-            symbol_id = order_data['instrument'].token
+            trading_symbol = order_data['instrument'].name
+            symbol_id = str(order_data['instrument'].token)
             transtype = order_data['transaction_type'].value
             trigPrice = order_data['trigger_price'] if 'trigger_price' in order_data else None
             stop_loss = order_data['stop_loss'] if 'stop_loss' in order_data else None
