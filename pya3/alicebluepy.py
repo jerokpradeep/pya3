@@ -36,10 +36,9 @@ def encrypt_string(hashing):
     return sha
 
 class Aliceblue:
-    # BASE_URL
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.7"
+    version = "1.0.10"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -163,8 +162,7 @@ class Aliceblue:
         _headers = {
             "X-SAS-Version": "2.0",
             "User-Agent": self._user_agent(),
-            "Authorization": self._user_authorization(),
-
+            "Authorization": self._user_authorization()
         }
         if req_type == "POST":
             try:
@@ -272,13 +270,11 @@ class Aliceblue:
         return deletescripsresp
 
     """Method to call Scrip Details"""
-    # def get_instrument_by_token(self,
-    #                    exchange,
-    #                    token):
-    #     data = {'exch': exchange,
-    #             'symbol': token}
-    #     scripsdetailresp = self._post("scripdetails", data)
-    #     return scripsdetailresp
+    def get_scrip_info(self,instrument):
+        data = {'exch': instrument.exchange,
+                'symbol': str(instrument.token)}
+        scripsdetailresp = self._post("scripdetails", data)
+        return scripsdetailresp
 
     """Method to call Squareoff Positions"""
     def squareoff_positions(self,
@@ -322,9 +318,12 @@ class Aliceblue:
 
         if trigger_price is not None and not isinstance(trigger_price, float):
             raise TypeError("Optional parameter trigger_price not of type float")
-        complexty = "regular"
+        if is_amo == True:
+            complexty = "AMO"
+        else:
+            complexty = "regular"
         discqty=0
-        exch=instrument['exch']
+        exch=instrument.exchange
         pCode = product_type.value
         price = price
         prctyp = order_type.value
@@ -333,11 +332,8 @@ class Aliceblue:
             ret='IOC'
         else:
             ret='DAY'
-        if exch == 'NSE' or exch == 'BSE':
-            trading_symbol=instrument['symbol']
-        else:
-            trading_symbol = instrument['tradingSymbol']
-        symbol_id=instrument['token']
+        trading_symbol=instrument.symbol
+        symbol_id=instrument.token
         transtype=transaction_type.value
         trigPrice=trigger_price
         # print("pCode:",instrument)
@@ -403,61 +399,40 @@ class Aliceblue:
 
     """Method to call Modify Order"""
 
-    def modifyorder(self,
-                    discqty,
-                    exch,
-                    filledQuantity,
-                    nestOrderNumber,
-                    prctyp,
-                    price,
-                    qty,
-                    trading_symbol,
-                    trigPrice,
-                    transtype,
-                    pCode):
-        data = {'discqty': discqty,
-                'exch': exch,
-                'filledQuantity': filledQuantity,
-                'nestOrderNumber': nestOrderNumber,
-                'prctyp': prctyp,
+    def modify_order(self, transaction_type, instrument, product_type, order_id, order_type, quantity, price=0.0,trigger_price=0.0):
+        if not isinstance(instrument, Instrument):
+            raise TypeError("Required parameter instrument not of type Instrument")
+
+        if not isinstance(order_id, str):
+            raise TypeError("Required parameter order_id not of type str")
+
+        if not isinstance(quantity, int):
+            raise TypeError("Optional parameter quantity not of type int")
+
+        if type(order_type) is not OrderType:
+            raise TypeError("Optional parameter order_type not of type OrderType")
+
+        if ProductType is None:
+            raise TypeError("Required parameter product_type not of type ProductType")
+
+        if price is not None and not isinstance(price, float):
+            raise TypeError("Optional parameter price not of type float")
+
+        if trigger_price is not None and not isinstance(trigger_price, float):
+            raise TypeError("Optional parameter trigger_price not of type float")
+        data = {'discqty': 0,
+                'exch': instrument.exchange,
+                # 'filledQuantity': filledQuantity,
+                'nestOrderNumber': order_id,
+                'prctyp': order_type,
                 'price': price,
-                'qty': qty,
-                'trading_symbol': trading_symbol,
-                'trigPrice': trigPrice,
-                'transtype': transtype,
-                'pCode': pCode}
+                'qty': quantity,
+                'trading_symbol': instrument.symbol,
+                'trigPrice': trigger_price,
+                'transtype': transaction_type,
+                'pCode': product_type}
         modifyorderresp = self._post("modifyorder", data)
         return modifyorderresp
-
-    """Method to call Market Order"""
-
-    def marketorder(self,
-                    complexty,
-                    discqty,
-                    exch,
-                    pCode,
-                    prctyp,
-                    price,
-                    qty,
-                    ret,
-                    symbol_id,
-                    trading_symbol,
-                    transtype,
-                    trigPrice):
-        data = [{'complexty': complexty,
-                 'discqty': discqty,
-                 'exch': exch,
-                 'pCode': pCode,
-                 'prctyp': prctyp,
-                 'price': price,
-                 'qty': qty,
-                 'ret': ret,
-                 'symbol_id': symbol_id,
-                 'trading_symbol': trading_symbol,
-                 'transtype': transtype,
-                 'trigPrice': trigPrice}]
-        marketorderresp = self._post("marketorder", data)
-        return marketorderresp
 
     """Method to call Exitbook  Order"""
 
@@ -493,26 +468,17 @@ class Aliceblue:
         scrip_response = self._dummypost(scrip_Url, data)
         return scrip_response
 
-    # def get_instrument_by_symbol(self,exchange, symbol):
-    #
-    #     scrip_Url = "https://a3.aliceblueonline.com/rest/DataApiService/v2/exchange/getScripForSearch"
-    #     data = {'symbol': symbol, 'exchange': ['ALL']}
-    #     scrip_response = self._dummypost(scrip_Url, data)
-    #     if 'stat' in scrip_response:
-    #         return scrip_response['emsg']
-    #     else:
-    #         if len(scrip_response)>=1:
-    #             return scrip_response[0]
-    #         else:
-    #             return scrip_response
 
     def place_basket_order(self,orders):
         data=[]
         for i in range(len(orders)):
             order_data = orders[i]
-            complexty = "regular"
+            if 'is_amo' in order_data and order_data['is_amo']:
+                complexty = "AMO"
+            else:
+                complexty = "regular"
             discqty = 0
-            exch = order_data['instrument']['exch']
+            exch = order_data['instrument'].exchange
             pCode = order_data['product_type'].value
             price = order_data['price'] if 'price' in order_data else 0
 
@@ -522,11 +488,8 @@ class Aliceblue:
                 ret = 'IOC'
             else:
                 ret = 'DAY'
-            if exch == 'NSE' or exch == 'BSE':
-                trading_symbol = order_data['instrument']['symbol']
-            else:
-                trading_symbol = order_data['instrument']['tradingSymbol']
-            symbol_id = order_data['instrument']['token']
+            trading_symbol = order_data['instrument'].symbol
+            symbol_id = order_data['instrument'].token
             transtype = order_data['transaction_type'].value
             trigPrice = order_data['trigger_price'] if 'trigger_price' in order_data else None
             stop_loss = order_data['stop_loss'] if 'stop_loss' in order_data else None
@@ -573,15 +536,15 @@ class Aliceblue:
     def get_instrument_by_symbol(self,exchange, symbol):
         try:
             contract = pd.read_csv("%s.csv" % exchange)
-            filter_contract = contract[contract['symbol'] == symbol.upper()]
+            filter_contract = contract[contract['Symbol'] == symbol.upper()]
             if len(filter_contract) == 0:
                 return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
             else:
                 filter_contract = filter_contract.reset_index()
                 if 'expiry_date' in filter_contract:
-                    inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0], filter_contract['symbol'][0], filter_contract['trading_symbol'][0], filter_contract['expiry_date'][0],filter_contract['lot_size'][0])
+                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0],filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0], filter_contract['Expiry Date'][0],filter_contract['Lot Size'][0])
                 else:
-                    inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0],filter_contract['symbol'][0], filter_contract['trading_symbol'][0],'', filter_contract['lot_size'][0])
+                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0],filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0],'', filter_contract['Lot Size'][0])
                 return inst
         except OSError as e:
             if e.errno == 2:
@@ -611,7 +574,10 @@ class Aliceblue:
     def get_instrument_for_fno(self,exch,symbol, expiry_date,is_fut=True,strike=None,is_CE = False):
         # print(exch)
         if exch in ['NFO','CDS','MCX','BFO','BCD']:
-            pass
+            if exch == 'CDS':
+                edate_format='%d-%m-%Y'
+            else:
+                edate_format = '%Y-%m-%d'
         else:
             return {"stat":"Not_ok","emsg":"Invalid exchange"}
         if not symbol:
@@ -633,12 +599,12 @@ class Aliceblue:
             # print(strike,is_fut)
             if is_fut == False:
                 if strike:
-                    filter_contract = contract[(contract['exch'] == exch)&(contract['symbol'] == symbol)&(contract['option_type'] == option_type)&(contract['strike_price'] == strike)&(contract['expiry_date'] == expiry_date.strftime('%Y-%m-%d'))]
+                    filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Strike Price'] == strike)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
                 else:
-                    filter_contract = contract[(contract['exch'] == exch)&(contract['symbol'] == symbol)&(contract['option_type'] == option_type)&(contract['expiry_date'] == expiry_date.strftime('%Y-%m-%d'))]
+                    filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
             if is_fut == True:
                 if strike == None:
-                    filter_contract = contract[(contract['exch'] == exch)&(contract['symbol'] == symbol)&(contract['option_type'] == 'XX')&(contract['strike_price'] == 0)&(contract['expiry_date'] == expiry_date.strftime('%Y-%m-%d'))]
+                    filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == 'XX')&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
                 else:
                     return {"stat": "Not_ok", "emsg": "No strike price for future"}
             # print(len(filter_contract))
@@ -648,7 +614,7 @@ class Aliceblue:
                 inst=[]
                 filter_contract = filter_contract.reset_index()
                 for i in range(len(filter_contract)):
-                    inst.append(Instrument(filter_contract['exch'][i], filter_contract['token'][i], filter_contract['symbol'][i], filter_contract['trading_symbol'][i], filter_contract['expiry_date'][i],filter_contract['lot_size'][i]))
+                    inst.append(Instrument(filter_contract['Exch'][i], filter_contract['Token'][i], filter_contract['Symbol'][i], filter_contract['Trading Symbol'][i], filter_contract['Expiry Date'][i],filter_contract['Lot Size'][i]))
                 return inst
         except OSError as e:
             if e.errno == 2:
@@ -656,42 +622,10 @@ class Aliceblue:
             else:
                 return {"stat":"Not_ok","emsg":e}
 
-    def get_sessionu(self):
-        BASEURL = 'https://a3uat.aliceblueonline.com/rest/AliceBlueAPIService'
-        url = BASEURL + "/api/customer/getAPIEncpkey"
 
-        payload = json.dumps({
-            "userId": self.user_id
-        })
-        headers = {
-            'Content-Type': 'application/json'
-        }
-
-        response = requests.request("POST", url, headers=headers, data=payload)
-        data = response.json()
-        # print(data)
-        if 'encKey' in data and data['encKey']:
-            encKey = data['encKey']
-            url = BASEURL + "/api/customer/getUserSID"
-            key = self.user_id + self.api_key + encKey
-            hash = hashlib.sha256(key.encode('utf-8')).hexdigest()
-            payload = json.dumps({
-                "userId": self.user_id,
-                "userData": hash
-            })
-            headers = {
-                'Content-Type': 'application/json'
-            }
-
-            response = requests.request("POST", url, headers=headers, data=payload)
-            # print(response.text)
-            return response.json()
-        else:
-            return response.json()
 
     def invalid_sess(self,session_ID):
-        BASEURL = 'https://a3uat.aliceblueonline.com/rest/AliceBlueAPIService'
-        url = BASEURL + '/api/ws/invalidateWsSession'
+        url = self.base_url + 'ws/invalidateSocketSess'
         headers = {
             'Authorization': 'Bearer ' + self.user_id + ' ' + session_ID,
             'Content-Type': 'application/json'
@@ -702,9 +636,7 @@ class Aliceblue:
         return response.json()
 
     def createSession(self,session_ID):
-        BASEURL = 'https://a3uat.aliceblueonline.com/rest/AliceBlueAPIService'
-        url = BASEURL + '/api/ws/createWsSession'
-
+        url = self.base_url + 'ws/createSocketSess'
         headers = {
             'Authorization': 'Bearer ' + self.user_id + ' ' + session_ID,
             'Content-Type': 'application/json'
@@ -713,7 +645,6 @@ class Aliceblue:
         datas = json.dumps(payload)
         response = requests.request("POST", url, headers=headers, data=datas)
 
-        # print(response.text)
         return response.json()
 
     def on_message(self,ws, message):
@@ -742,24 +673,22 @@ class Aliceblue:
             "uid": self.user_id + "_API",
             "source": "API"
         }
-        print(initCon)
         self.ws.send(json.dumps(initCon))
-        # ws.send(initCon)
 
     def start_websocket(self,script_subscription):
-        session_request=self.get_sessionu()
-        if 'sessionID' in session_request:
+        session_request=self.session_id
+        if session_request:
             self.subscriptions= script_subscription
-            session_id = session_request['sessionID']
+            session_id = session_request
             sha256_encryption1 = hashlib.sha256(session_id.encode('utf-8')).hexdigest()
             self.ENC = hashlib.sha256(sha256_encryption1.encode('utf-8')).hexdigest()
             invalidSess = self.invalid_sess(session_id)
             if invalidSess['stat']=='Ok':
-                print("STAGE 1: invalidSess :",invalidSess['stat'])
+                print("STAGE 1: Invalidate the previous session :",invalidSess['stat'])
                 createSess = self.createSession(session_id)
                 if createSess['stat']=='Ok':
-                    print("STAGE 2: createSess :", createSess['stat'])
-                    print("Connecting Socket ...")
+                    print("STAGE 2: Create the new session :", createSess['stat'])
+                    print("Connecting to Socket ...")
                     websocket.enableTrace(False)
                     self.ws = websocket.WebSocketApp(self._sub_urls['base_url_socket'],
                                                 on_open=self.on_open,
@@ -784,6 +713,7 @@ class Alice_Wrapper():
     def subscription(script_list):
         if len(script_list) > 0:
             sub_prams=''
+            print(script_list)
             for i in range(len(script_list)):
                 end_point = '' if i == len(script_list)-1 else '#'
                 sub_prams=sub_prams+script_list[i].exchange+'|'+str(script_list[0].token)+end_point

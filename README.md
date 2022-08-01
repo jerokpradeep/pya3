@@ -10,6 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
+* **Current Version**: 1.0.10
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -98,7 +99,7 @@ from pya3 import *
 alice = Aliceblue(user_id='username',api_key='API_KEY')
 ```
 
-2. You can get a Session ID by running following command.
+2. You can get a Session ID by running following command. Store it once a day
 ```python
 print(alice.get_session_id()) # Get Session ID
 ```
@@ -108,89 +109,93 @@ print(alice.get_session_id()) # Get Session ID
 print(alice.get_balance()) # get balance / margin limits
 print(alice.get_profile()) # get profile
 print(alice.get_daywise_positions()) # get daywise positions
-print(alice.get_netwise_positions()) # get netwise positions
+print(alice.get_netwise_positions()) # get all netwise positions
 print(alice.get_holding_positions()) # get holding positions
 ```
+### Alice Wrapper
+1. Check Net Position Wrapper (Open/Close) Position:
+```
+Net_position = alice.get_netwise_positions()
 
-[//]: # (### Get master contracts)
+open_position= Alice_Wrapper.open_net_position(Net_position)
+print("Open position :",open_position)
 
-[//]: # (Getting master contracts allow you to search for instruments by symbol name and place orders.)
+close_position = Alice_Wrapper.close_net_poition(Net_position)
+print("Close position :",close_position)
+```
+### Get master contracts
 
-[//]: # (Master contracts are stored as an OrderedDict by token number and by symbol name. Whenever you get a trade update, order update, or quote update, the library will check if master contracts are loaded. If they are, it will attach the instrument object directly to the update. By default all master contracts of all enabled exchanges in your personal profile will be downloaded. i.e. If your profile contains the following as enabled exchanges `['NSE', 'BSE', 'MCX', NFO']` all contract notes of all exchanges will be downloaded by default. If you feel it takes too much time to download all exchange, or if you don't need all exchanges to be downloaded, you can specify which exchange to download contract notes while creating the AliceBlue object.)
+Getting master contracts allow you to search for instruments by symbol name and place orders.
 
-[//]: # ()
-[//]: # (```python)
+Master contracts are stored as an CSV at local by token number and by symbol name. Whenever you get a trade update, order update, or quote update, the library will check if master contracts are loaded. If they are, it will attach the instrument object directly to the update. By default all master contracts of all enabled exchanges in your personal profile will be downloaded. i.e. If your profile contains the following as enabled exchanges `['NSE', 'BSE', 'MCX', NFO']` all contract notes of all exchanges will be downloaded by default. If you feel it takes too much time to download all exchange, or if you don't need all exchanges to be downloaded, you can specify which exchange to download contract notes while creating the AliceBlue object.
 
-[//]: # (alice = AliceBlue&#40;username='username', password='password', access_token=access_token, master_contracts_to_download=['NSE', 'BSE']&#41;)
 
-[//]: # (```)
+```python
+alice.get_contract_master("MCX")
+alice.get_contract_master("NFO")
+alice.get_contract_master("NSE")
+alice.get_contract_master("BSE")
+alice.get_contract_master("CDS")
+alice.get_contract_master("BFO")
+```
 
-[//]: # (This will reduce a few milliseconds in object creation time of AliceBlue object.)
+This will reduce a few milliseconds in object creation time of AliceBlue object.
 
 ### Get tradable instruments
 Symbols can be retrieved in multiple ways. Once you have the master contract loaded for an exchange, you can get an instrument in many ways.
 
 Get a single instrument by it's name:
 ```python
-tatasteel_nse_eq = alice.get_instrument_by_symbol('NSE', 'TATASTEEL')
-reliance_nse_eq = alice.get_instrument_by_symbol('NSE', 'RELIANCE')
-ongc_bse_eq = alice.get_instrument_by_symbol('BSE', 'ONGC')
-india_vix_nse_index = alice.get_instrument_by_symbol('NSE', 'India VIX')
-sensex_nse_index = alice.get_instrument_by_symbol('BSE', 'SENSEX')
-nifty50_nse_index = alice.get_instrument_by_symbol('NSE', 'Nifty 50')
-banknifty_nse_index = alice.get_instrument_by_symbol('NSE', 'Nifty Bank')
+print(alice.get_instrument_by_symbol('NSE','ONGC'))
+print(alice.get_instrument_by_symbol('BSE','TATASTEEL'))
+print(alice.get_instrument_by_symbol('MCX','GOLDM'))
 ```
 
 Get a single instrument by it's token number (generally useful only for BSE Equities):
 ```python
-ongc_bse_eq = alice.get_instrument_by_token('BSE', 500312)
-reliance_bse_eq = alice.get_instrument_by_token('BSE', 500325)
-acc_nse_eq = alice.get_instrument_by_token('NSE', 22)
+print(alice.get_instrument_by_token("MCX",239484))
+print(alice.get_instrument_by_token('BSE',500325))
+print(alice.get_instrument_by_token('NSE',22))
 ```
 
-[//]: # (Get FNO instruments easily by mentioning expiry, strike & call or put.)
+Get FNO instruments easily by mentioning expiry, strike & call or put.
 
-[//]: # (```python)
-
-[//]: # (bn_fut = alice.get_instrument_for_fno&#40;symbol = 'BANKNIFTY', expiry_date=datetime.date&#40;2019, 6, 27&#41;, is_fut=True, strike=None, is_CE = False&#41;)
-
-[//]: # (bn_call = alice.get_instrument_for_fno&#40;symbol = 'BANKNIFTY', expiry_date=datetime.date&#40;2019, 6, 27&#41;, is_fut=False, strike=30000, is_CE = True&#41;)
-
-[//]: # (bn_put = alice.get_instrument_for_fno&#40;symbol = 'BANKNIFTY', expiry_date=datetime.date&#40;2019, 6, 27&#41;, is_fut=False, strike=30000, is_CE = False&#41;)
-
-[//]: # (```)
+```python
+print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="25-08-2022", is_fut=True,strike=None, is_CE=False))
+print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="04-08-2022", is_fut=False,strike=37700, is_CE=False))
+print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="04-08-2022", is_fut=False,strike=37700, is_CE=True))
+print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="26-08-2022", is_fut=True,strike=None, is_CE=False))
+print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="05-08-2022", is_fut=False,strike=79.50000, is_CE=False))
+print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="26-08-2022", is_fut=False,strike=79.50000, is_CE=True))
+```
 
 ### Search for symbols
 Search for multiple instruments by matching the name. This works case insensitive and returns all instrument which has the name in its symbol.
 ```python
-all_sensex_scrips = alice.search_instruments('BSE', 'sEnSeX')
+all_sensex_scrips = alice.search_instruments('BSE', 'SENSEX')
 print(all_sensex_scrips)
 ```
 The above code results multiple symbol which has 'sensex' in its symbol.
 
 
-[//]: # (#### Instrument object)
+#### Instrument object
 
-[//]: # (Instruments are represented by instrument objects. These are named-tuples that are created while getting the master contracts. They are used when placing an order and searching for an instrument. The structure of an instrument tuple is as follows:)
+Instruments are represented by instrument objects. These are named-tuples that are created while getting the master contracts. They are used when placing an order and searching for an instrument. The structure of an instrument tuple is as follows:
 
-[//]: # (```python)
+```python
 
-[//]: # (Instrument = namedtuple&#40;'Instrument', ['exchange', 'token', 'symbol',)
+Instrument = namedtuple('Instrument', ['exchange', 'token', 'symbol','name', 'expiry', 'lot_size'])
 
-[//]: # (                                      'name', 'expiry', 'lot_size']&#41;)
+```
 
-[//]: # (```)
 
-[//]: # ()
-[//]: # (All instruments have the fields mentioned above. Wherever a field is not applicable for an instrument &#40;for example, equity instruments don't have strike prices&#41;, that value will be `None`)
+All instruments have the fields mentioned above. Wherever a field is not applicable for an instrument (for example, equity instruments don't have strike prices), that value will be `None`
 
 
 ### Place an order
 Place limit, market, SL, SL-M, AMO, BO, CO orders
 
 ```python
-print (alice.get_profile())
-
 # TransactionType.Buy, OrderType.Market, ProductType.Delivery
 
 print ("%%%%%%%%%%%%%%%%%%%%%%%%%%%%1%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
@@ -419,11 +424,18 @@ order2 = {  "instrument"        : alice.get_instrument_by_symbol('NSE', 'SBIN'),
 orders = [order1, order2]
 print(alice.place_basket_order(orders))
 ```
+### Websocket
+Subscribe script and Connect the Websocket
+```python
+subscriptions=Alice_Wrapper.subscription([alice.get_instrument_by_token("MCX",239484),alice.get_instrument_by_token('BSE',500325),alice.get_instrument_by_token("MCX",239484),alice.get_instrument_by_symbol('NSE','ONGC'),alice.get_instrument_by_symbol('BSE','TATASTEEL'),alice.get_instrument_by_symbol('BSE','RELIANCE')])
+print("Subscribed Script :",subscriptions.split('#'))
+alice.start_websocket(subscriptions)
+```
 
 ### Cancel an order
 
 ```python
-alice.cancel_order('170713000075481') #Cancel an open order
+alice.cancel_order('NSE','191015000018737','ASHOKLEY-EQ')) #Cancel an open order
 ```
 
 ### Getting order history and trade details
