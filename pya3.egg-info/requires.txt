@@ -1,0 +1,4 @@
+requests
+pandas
+websocket-client
+rel
