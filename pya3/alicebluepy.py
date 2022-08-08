@@ -39,7 +39,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.15"
+    version = "1.0.16"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -429,7 +429,6 @@ class Aliceblue:
         data = {'ret': 'NET' }
         positionbookresp = self._post("positiondata", data)
         return positionbookresp
-    """Method to get Scripsforsearch"""
 
     def place_basket_order(self,orders):
         data=[]
@@ -720,7 +719,7 @@ class Alice_Wrapper():
             # print(script_list)
             for i in range(len(script_list)):
                 end_point = '' if i == len(script_list)-1 else '#'
-                sub_prams=sub_prams+script_list[i].exchange+'|'+str(script_list[0].token)+end_point
+                sub_prams=sub_prams+script_list[i].exchange+'|'+str(script_list[i].token)+end_point
             return sub_prams
         else:
             return {'stat':'Not_ok','emsg':'Script response is not fetched properly. Please check once'}
@@ -747,7 +746,8 @@ class Alice_Wrapper():
                     "exchange": new_json['Exchange'],
                     "disclosed_quantity": new_json['Dscqty'],
                     "client_id": new_json['user'],
-                    "average_price": new_json['Avgprc']
+                    "average_price": new_json['Avgprc'],
+                    "order_tag":new_json['Remarks']
                 }
                 old_response_data.append(old_json)
             return old_response_data

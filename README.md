@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.15**
+* **Current Version: 1.0.16**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
