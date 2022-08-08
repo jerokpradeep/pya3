@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.14**
+* **Current Version: 1.0.15**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -48,8 +48,8 @@ Python >=3.7
 ## Getting started with API
 
 ### Overview
-There is only one class in the whole library: `AliceBlue`. The `get_session_id` static method is used to retrieve a Session ID from the alice blue server. A Session ID is valid until the trading account logout.
-With a Session ID, you can instantiate an AliceBlue object. Ideally you only need to create a Session ID once every time login the trading account. After you have the Session ID, you can store it
+There is only two class in the whole library: `AliceBlue` and `Alice_Wrapper`. The `get_session_id` static method is used to retrieve a Session ID from the alice blue server. A Session ID is valid until the trading account logout.
+With a Session ID, you can instantiate an AliceBlue object. Ideally you only need to create a Session ID once every time login the trading account with password. After you have the Session ID, you can store it
 separately for re-use.
 
 ### REST Documentation
@@ -123,11 +123,16 @@ print("Open position :",open_position)
 close_position = Alice_Wrapper.close_net_poition(Net_position)
 print("Close position :",close_position)
 ```
+2. Order History response wrapper:
+```commandline
+order_history_response = alice.get_order_history('')
+print(Alice_Wrapper.order_history(response_data))
+```
 ### Get master contracts
 
 Getting master contracts allow you to search for instruments by symbol name and place orders.
 
-Master contracts are stored as an CSV at local by token number and by symbol name. Whenever you get a trade update, order update, or quote update, the library will check if master contracts are loaded. If they are, it will attach the instrument object directly to the update. By default all master contracts of all enabled exchanges in your personal profile will be downloaded. i.e. If your profile contains the following as enabled exchanges `['NSE', 'BSE', 'MCX', NFO']` all contract notes of all exchanges will be downloaded by default. If you feel it takes too much time to download all exchange, or if you don't need all exchanges to be downloaded, you can specify which exchange to download contract notes while creating the AliceBlue object.
+Master contracts are stored as an CSV at local by token number and by symbol name. Whenever you get a trade update, order update, or quote update, the library will check if master contracts are loaded. If they are, it will attach the instrument object directly to the update. By default all master contracts of all enabled exchanges in your personal profile will be downloaded. i.e. If your profile contains the following as enabled exchanges `['NSE','CDS', 'BSE','BFO', 'MCX', NFO','INDICES']` all contract notes of all exchanges will be downloaded by default. If you feel it takes too much time to download all exchange, or if you don't need all exchanges to be downloaded, you can specify which exchange to download contract notes while creating the AliceBlue object.
 
 
 ```python
@@ -137,6 +142,7 @@ alice.get_contract_master("NSE")
 alice.get_contract_master("BSE")
 alice.get_contract_master("CDS")
 alice.get_contract_master("BFO")
+alice.get_contract_master("INDICES")
 ```
 
 This will reduce a few milliseconds in object creation time of AliceBlue object.
@@ -149,6 +155,8 @@ Get a single instrument by it's name:
 print(alice.get_instrument_by_symbol('NSE','ONGC'))
 print(alice.get_instrument_by_symbol('BSE','TATASTEEL'))
 print(alice.get_instrument_by_symbol('MCX','GOLDM'))
+print(alice.get_instrument_by_symbol('INDICES','NIFTY'))
+print(alice.get_instrument_by_symbol('INDICES','NIFTY BANK'))
 ```
 
 Get a single instrument by it's token number (generally useful only for BSE Equities):
@@ -156,6 +164,8 @@ Get a single instrument by it's token number (generally useful only for BSE Equi
 print(alice.get_instrument_by_token("MCX",239484))
 print(alice.get_instrument_by_token('BSE',500325))
 print(alice.get_instrument_by_token('NSE',22))
+print(alice.get_instrument_by_token('INDICES',26000)) # Nifty Indices
+print(alice.get_instrument_by_token('INDICES',26009)) # Bank Nifty
 ```
 
 Get FNO instruments easily by mentioning expiry, strike & call or put.
@@ -170,7 +180,7 @@ print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="26-0
 ```
 
 ### Search for symbols
-Search for multiple instruments by matching the name. This works case insensitive and returns all instrument which has the name in its symbol.
+Search for multiple instruments by matching the name. This works case insensitive and returns all instrument which has the name in its symbol. It does not require contract master file.
 ```python
 all_sensex_scrips = alice.search_instruments('BSE', 'SENSEX')
 print(all_sensex_scrips)
@@ -210,7 +220,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
    )
 
 # TransactionType.Buy, OrderType.Market, ProductType.Intraday
@@ -227,7 +238,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 # TransactionType.Buy, OrderType.Market, ProductType.CoverOrder
@@ -244,7 +256,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 
@@ -263,7 +276,8 @@ print(
                      stop_loss = 6.0,
                      square_off = 10.0,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 # TransactionType.Buy, OrderType.Limit, ProductType.Intraday
@@ -280,7 +294,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 
@@ -298,7 +313,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 ###############################
@@ -317,7 +333,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 
@@ -335,7 +352,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 
@@ -362,7 +380,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 
@@ -380,7 +399,8 @@ print(
                      stop_loss = None,
                      square_off = None,
                      trailing_sl = None,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 
 
@@ -403,7 +423,8 @@ print(
                      stop_loss = 1.0,
                      square_off = 1.0,
                      trailing_sl = 20,
-                     is_amo = False)
+                     is_amo = False,
+                     order_tag='order1')
 )
 ```
 
@@ -414,13 +435,15 @@ order1 = {  "instrument"        : alice.get_instrument_by_symbol('NSE', 'INFY'),
             "order_type"        : OrderType.Market,
             "quantity"          : 1,
             "transaction_type"  : TransactionType.Buy,
-            "product_type"      : ProductType.Delivery}
+            "product_type"      : ProductType.Delivery,
+            "order_tag"         : "Order1"}
 order2 = {  "instrument"        : alice.get_instrument_by_symbol('NSE', 'SBIN'),
             "order_type"        : OrderType.Limit,
             "quantity"          : 2,
             "price"             : 280.0,
             "transaction_type"  : TransactionType.Sell,
-            "product_type"      : ProductType.Intraday}
+            "product_type"      : ProductType.Intraday,
+            "order_tag"         : "Order2"}
 orders = [order1, order2]
 print(alice.place_basket_order(orders))
 ```
@@ -429,7 +452,7 @@ print(alice.place_basket_order(orders))
 Subscribe script and Connect the Websocket
 ```python
 subscriptions=Alice_Wrapper.subscription([alice.get_instrument_by_token("MCX",239484),alice.get_instrument_by_token('BSE',500325),alice.get_instrument_by_token("MCX",239484),alice.get_instrument_by_symbol('NSE','ONGC'),alice.get_instrument_by_symbol('BSE','TATASTEEL'),alice.get_instrument_by_symbol('BSE','RELIANCE')])
-print("Subscribed Script :",subscriptions.split('#'))
+print("Subscriptions :",subscriptions)
 alice.start_websocket(subscriptions)
 ```
 

@@ -39,7 +39,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.14"
+    version = "1.0.15"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -295,7 +295,7 @@ class Aliceblue:
                     product_type, price=0.0, trigger_price=None,
                     stop_loss=None, square_off=None, trailing_sl=None,
                     is_amo=False,
-                    order_tag='order1',
+                    order_tag=None,
                     is_ioc=False):
         if transaction_type is None:
             raise TypeError("Required parameter transaction_type not of type TransactionType")
@@ -353,45 +353,12 @@ class Aliceblue:
                  "stopLoss": stop_loss,
                  "target": square_off,
                  "trailing_stop_loss": trailing_sl,
-                 'trigPrice': trigPrice}]
+                 "trigPrice": trigPrice,
+                 "orderTag":order_tag}]
         # print(data)
         placeorderresp = self._post("placeorder", data)
         return placeorderresp
 
-    """Method to call  Bracket Order"""
-    def bracket_order(self,
-                      complexty,
-                      discqty,
-                      exch,
-                      pCode,
-                      price,
-                      prctyp,
-                      qty,
-                      ret,
-                      stopLoss,
-                      symbol_id,
-                      target,
-                      trailing_stop_loss,
-                      trading_symbol,
-                      transtype,
-                      trigPrice):
-        data = [{'complexty': complexty,
-                 'discqty': discqty,
-                 'exch': exch,
-                 'pCode': pCode,
-                 'price': price,
-                 'prctyp': prctyp,
-                 'qty': qty,
-                 'ret': ret,
-                 'target': target,
-                 'stopLoss': stopLoss,
-                 'trailing_stop_loss': trailing_stop_loss,
-                 'symbol_id': symbol_id,
-                 'trading_symbol': trading_symbol,
-                 'transtype': transtype,
-                 'trigPrice': trigPrice}]
-        bracketorderresp = self._post("bracketorder", data)
-        return bracketorderresp
 
     """Method to get Funds Data"""
 
@@ -464,14 +431,6 @@ class Aliceblue:
         return positionbookresp
     """Method to get Scripsforsearch"""
 
-    def search_instruments(self,exchange, symbol):
-
-        scrip_Url = "https://a3.aliceblueonline.com/rest/DataApiService/v2/exchange/getScripForSearch"
-        data = {'symbol': symbol, 'exchange': [exchange]}
-        scrip_response = self._dummypost(scrip_Url, data)
-        return scrip_response
-
-
     def place_basket_order(self,orders):
         data=[]
         for i in range(len(orders)):
@@ -501,7 +460,7 @@ class Aliceblue:
             stop_loss = order_data['stop_loss'] if 'stop_loss' in order_data else None
             trailing_sl = order_data['trailing_sl'] if 'trailing_sl' in order_data else None
             square_off = order_data['square_off'] if 'square_off' in order_data else None
-
+            ordertag = order_data['order_tag'] if 'order_tag' in order_data else None
             request_data={'complexty': complexty,
                      'discqty': discqty,
                      'exch': exch,
@@ -516,7 +475,8 @@ class Aliceblue:
                      "stopLoss": stop_loss,
                      "target": square_off,
                      "trailing_stop_loss": trailing_sl,
-                     'trigPrice': trigPrice}
+                     "trigPrice": trigPrice,
+                     "orderTag":ordertag}
 
             data.append(request_data)
         # print(data)
@@ -524,7 +484,7 @@ class Aliceblue:
         return placeorderresp
 
     def get_contract_master(self,exchange):
-        if len(exchange) == 3:
+        if len(exchange) == 3 or exchange == 'INDICES':
             print("NOTE: Today's contract master file will be updated after 08:00 AM. Before 08:00 AM previous day contract file be downloaded.")
             if time(8,00) <= datetime.now().time():
                 url= self.base_url_c % exchange.upper()
@@ -542,40 +502,64 @@ class Aliceblue:
     def get_instrument_by_symbol(self,exchange, symbol):
         try:
             contract = pd.read_csv("%s.csv" % exchange)
+        except OSError as e:
+            if e.errno == 2:
+                self.get_contract_master(exchange)
+                contract = pd.read_csv("%s.csv" % exchange)
+            else:
+                return {"stat":"Not_ok","emsg":e}
+        if exchange == 'INDICES':
+            filter_contract = contract[contract['symbol'] == symbol.upper()]
+            if len(filter_contract) == 0:
+                return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
+            else:
+                filter_contract = filter_contract.reset_index()
+                inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0], filter_contract['symbol'][0],
+                                  '', '', '')
+                return inst
+        else:
             filter_contract = contract[contract['Symbol'] == symbol.upper()]
             if len(filter_contract) == 0:
                 return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
             else:
                 filter_contract = filter_contract.reset_index()
                 if 'expiry_date' in filter_contract:
-                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0],filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0], filter_contract['Expiry Date'][0],filter_contract['Lot Size'][0])
+                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0],
+                                      filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0],
+                                      filter_contract['Expiry Date'][0], filter_contract['Lot Size'][0])
                 else:
-                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0],filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0],'', filter_contract['Lot Size'][0])
+                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0],
+                                      filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0], '',
+                                      filter_contract['Lot Size'][0])
                 return inst
-        except OSError as e:
-            if e.errno == 2:
-                return {"stat": "Not_ok", "emsg": "Contract master is not available."}
-            else:
-                return {"stat":"Not_ok","emsg":e}
 
     def get_instrument_by_token(self,exchange, token):
         try:
             contract = pd.read_csv("%s.csv" % exchange)
+        except OSError as e:
+            if e.errno == 2:
+                self.get_contract_master(exchange)
+                contract = pd.read_csv("%s.csv" % exchange)
+            else:
+                return {"stat":"Not_ok","emsg":e}
+        if exchange == 'INDICES':
+            filter_contract = contract[contract['token'] == token]
+            inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0], filter_contract['symbol'][0],'', '','')
+            return inst
+        else:
             filter_contract = contract[contract['Token'] == token]
             if len(filter_contract) == 0:
                 return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
             else:
                 filter_contract = filter_contract.reset_index()
                 if 'expiry_date' in filter_contract:
-                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0], filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0], filter_contract['Expiry Date'][0],filter_contract['Lot Size'][0])
+                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0], filter_contract['Symbol'][0],
+                                      filter_contract['Trading Symbol'][0], filter_contract['Expiry Date'][0],
+                                      filter_contract['Lot Size'][0])
                 else:
-                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0],filter_contract['Symbol'][0], filter_contract['Trading Symbol'][0],'', filter_contract['Lot Size'][0])
+                    inst = Instrument(filter_contract['Exch'][0], filter_contract['Token'][0], filter_contract['Symbol'][0],
+                                      filter_contract['Trading Symbol'][0], '', filter_contract['Lot Size'][0])
                 return inst
-        except OSError as e:
-            if e.errno == 2:
-                return {"stat": "Not_ok", "emsg": "Contract master is not available."}
-            else:
-                return {"stat":"Not_ok","emsg":e}
 
     def get_instrument_for_fno(self,exch,symbol, expiry_date,is_fut=True,strike=None,is_CE = False):
         # print(exch)
@@ -603,32 +587,30 @@ class Aliceblue:
         try:
             contract = pd.read_csv("%s.csv" % exch)
             # print(strike,is_fut)
-            if is_fut == False:
-                if strike:
-                    filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Strike Price'] == strike)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
-                else:
-                    filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
-            if is_fut == True:
-                if strike == None:
-                    filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == 'XX')&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
-                else:
-                    return {"stat": "Not_ok", "emsg": "No strike price for future"}
-            # print(len(filter_contract))
-            if len(filter_contract) == 0:
-                return {"stat": "Not_ok", "emsg": "No Data"}
-            else:
-                inst=[]
-                filter_contract = filter_contract.reset_index()
-                for i in range(len(filter_contract)):
-                    inst.append(Instrument(filter_contract['Exch'][i], filter_contract['Token'][i], filter_contract['Symbol'][i], filter_contract['Trading Symbol'][i], filter_contract['Expiry Date'][i],filter_contract['Lot Size'][i]))
-                return inst
         except OSError as e:
             if e.errno == 2:
                 return {"stat": "Not_ok", "emsg": "Contract master is not available."}
             else:
                 return {"stat":"Not_ok","emsg":e}
-
-
+        if is_fut == False:
+            if strike:
+                filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Strike Price'] == strike)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
+            else:
+                filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
+        if is_fut == True:
+            if strike == None:
+                filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == 'XX')&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
+            else:
+                return {"stat": "Not_ok", "emsg": "No strike price for future"}
+        # print(len(filter_contract))
+        if len(filter_contract) == 0:
+            return {"stat": "Not_ok", "emsg": "No Data"}
+        else:
+            inst=[]
+            filter_contract = filter_contract.reset_index()
+            for i in range(len(filter_contract)):
+                inst.append(Instrument(filter_contract['Exch'][i], filter_contract['Token'][i], filter_contract['Symbol'][i], filter_contract['Trading Symbol'][i], filter_contract['Expiry Date'][i],filter_contract['Lot Size'][i]))
+            return inst
 
     def invalid_sess(self,session_ID):
         url = self.base_url + 'ws/invalidateSocketSess'
@@ -681,6 +663,22 @@ class Aliceblue:
         }
         self.ws.send(json.dumps(initCon))
 
+    def search_instruments(self,exchange,symbol):
+        base_url=self.base_url.replace('/AliceBlueAPIService/api','')
+        scrip_Url = base_url+"DataApiService/v2/exchange/getScripForSearch"
+        # print(scrip_Url)
+        data = {'symbol':symbol, 'exchange': [exchange]}
+        # print(data)
+        scrip_response = self._dummypost(scrip_Url, data)
+        if scrip_response ==[]:
+            return {'stat':'Not_ok','emsg':'Symbol not found'}
+        else:
+            inst=[]
+            for i in range(len(scrip_response)):
+                # print(scrip_response[i])
+                inst.append(Instrument(scrip_response[i]['exch'],scrip_response[i]['token'],scrip_response[i]['formattedInsName'],scrip_response[i]['symbol'],'',''))
+            return inst
+
     def start_websocket(self,script_subscription):
         session_request=self.session_id
         if session_request:
@@ -724,3 +722,32 @@ class Alice_Wrapper():
                 end_point = '' if i == len(script_list)-1 else '#'
                 sub_prams=sub_prams+script_list[i].exchange+'|'+str(script_list[0].token)+end_point
             return sub_prams
+        else:
+            return {'stat':'Not_ok','emsg':'Script response is not fetched properly. Please check once'}
+
+    def order_history(response_data):
+        if response_data:
+            old_response_data=[]
+            for new_json in response_data:
+                old_json = {
+                    "validity": new_json['Validity'],
+                    "trigger_price": new_json['Trgprc'],
+                    "transaction_type": new_json['Trantype'],
+                    "trading_symbol": new_json['Trsym'],
+                    "rejection_reason": new_json['RejReason'],
+                    "quantity": new_json['Qty'],
+                    "product": new_json['Pcode'],
+                    "price_to_fill": new_json['Prc'],
+                    "order_status": new_json['Status'],
+                    "oms_order_id": new_json['Nstordno'],
+                    "nest_request_id": new_json['RequestID'],
+                    "filled_quantity": new_json['Fillshares'],
+                    "exchange_time": new_json['orderentrytime'],
+                    "exchange_order_id": new_json['ExchOrdID'],
+                    "exchange": new_json['Exchange'],
+                    "disclosed_quantity": new_json['Dscqty'],
+                    "client_id": new_json['user'],
+                    "average_price": new_json['Avgprc']
+                }
+                old_response_data.append(old_json)
+            return old_response_data
