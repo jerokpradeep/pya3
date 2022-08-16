@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.16**
+* **Current Version: 1.0.17**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -128,6 +128,19 @@ print("Close position :",close_position)
 order_history_response = alice.get_order_history('')
 print(Alice_Wrapper.order_history(response_data))
 ```
+
+3. Balance response wrapper:
+```commandline
+get_balance_response=alice.get_balance()
+print(Alice_Wrapper.get_balance(get_balance_response))
+```
+
+4. Profile response wrapper:
+```commandline
+get_profile_response=alice.get_profile()
+print(Alice_Wrapper.get_profile(get_profile_response))
+```
+
 ### Get master contracts
 
 Getting master contracts allow you to search for instruments by symbol name and place orders.
@@ -451,9 +464,26 @@ print(alice.place_basket_order(orders))
 ### Websocket
 Subscribe script and Connect the Websocket
 ```python
-subscriptions=Alice_Wrapper.subscription([alice.get_instrument_by_token("MCX",239484),alice.get_instrument_by_token('BSE',500325),alice.get_instrument_by_token("MCX",239484),alice.get_instrument_by_symbol('NSE','ONGC'),alice.get_instrument_by_symbol('BSE','TATASTEEL'),alice.get_instrument_by_symbol('BSE','RELIANCE')])
-print("Subscriptions :",subscriptions)
-alice.start_websocket(subscriptions)
+def feed_data(message):
+    feed_message=json.loads(message)
+    if feed_message["t"] == "ck":
+        print("Connection Acknowledgement status :%s (Websocket Connected)"%feed_message["s"])
+        print("-------------------------------------------------------------------------------")
+    if feed_message["t"] == "tk":
+        print("Token Acknowledgement status :%s "%feed_message)
+        print("-------------------------------------------------------------------------------")
+    else:
+        print("Feed :", feed_message)
+
+def subscription_list(subscrip_list):
+    print("Subscription List:")
+    for list in subscrip_list:
+        print("Exchange: %s ,Symbol: %s ,Token: %s"%(list.exchange,list.symbol,list.token))
+    print("-----------------------------------------------------------------------------------")
+
+alice.get_contract_master("INDICES")
+subscriptions=Alice_Wrapper.subscription([alice.get_instrument_by_symbol('INDICES','NIFTY BANK'),alice.get_instrument_by_token('INDICES',26000)])
+alice.start_websocket(script_subscription=subscriptions,subscription_callback=feed_data,check_subscription_callback=subscription_list)
 ```
 
 ### Modify an order

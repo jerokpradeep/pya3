@@ -5,10 +5,12 @@ import enum
 import logging
 import pandas as pd
 from datetime import time,datetime
+from time import sleep
 from collections import namedtuple
 import os
 import websocket
 import rel
+import threading
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +41,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.16"
+    version = "1.0.17"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -78,7 +80,10 @@ class Aliceblue:
     ENC = None
     ws = None
     subscriptions = None
-
+    __subscribe_callback = None
+    __subscribers = None
+    script_subscription_instrument =[]
+    ws_connection = False
     # response = requests.get(base_url);
     # Getscrip URI
 
@@ -183,6 +188,8 @@ class Aliceblue:
                 return {'stat':'Not_ok','emsg':'Please Check the Internet connection.','encKey':None}
             return json.loads(response.text)
 
+    def _error_response(self,message):
+        return {"stat":"Not_ok","emsg":message}
     # Methods to call HTTP Request
 
     """Userlogin method with userid and userapi_key"""
@@ -225,13 +232,17 @@ class Aliceblue:
         return orderresp
 
     def get_order_history(self, nextorder):
+        orderresp = self._get("orderbook")
         if nextorder == '':
-            orderresp = self._get("orderbook")
+            # orderresp = self._get("orderbook")
             return orderresp
         else:
-            data = {'nestOrderNumber': nextorder}
-            orderhistoryresp = self._post("orderhistory", data)
-            return orderhistoryresp
+            # data = {'nestOrderNumber': nextorder}
+            # orderhistoryresp = self._post("orderhistory", data)
+            # return orderhistoryresp
+            for order in orderresp:
+                if order['Nstordno'] == nextorder:
+                    return order
 
     """Method to call Cancel Orders"""
     def cancel_order(self, instrument,nestordernmbr):
@@ -490,13 +501,13 @@ class Aliceblue:
                 response = requests.get(url)
                 with open("%s.csv"% exchange.upper(), "w") as f:
                     f.write(response.text)
-                return {"stat":"ok","msg":"Today contract File Downloaded"}
+                return self._error_response("Today contract File Downloaded")
             else:
-                return {"stat":"ok","msg":"Previous day contract file saved"}
+                return self._error_response("Previous day contract file saved")
         elif exchange is None:
-            return {"stat": "Not_ok", "emsg": "Invalid Exchange parameter"}
+            return self._error_response("Invalid Exchange parameter")
         else:
-            return {"stat":"Not_ok","emsg":"Invalid Exchange parameter"}
+            return self._error_response("Invalid Exchange parameter")
 
     def get_instrument_by_symbol(self,exchange, symbol):
         try:
@@ -506,11 +517,11 @@ class Aliceblue:
                 self.get_contract_master(exchange)
                 contract = pd.read_csv("%s.csv" % exchange)
             else:
-                return {"stat":"Not_ok","emsg":e}
+                return self._error_response(e)
         if exchange == 'INDICES':
             filter_contract = contract[contract['symbol'] == symbol.upper()]
             if len(filter_contract) == 0:
-                return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
+                return self._error_response("The symbol is not available in this exchange")
             else:
                 filter_contract = filter_contract.reset_index()
                 inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0], filter_contract['symbol'][0],
@@ -519,7 +530,7 @@ class Aliceblue:
         else:
             filter_contract = contract[contract['Symbol'] == symbol.upper()]
             if len(filter_contract) == 0:
-                return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
+                return self._error_response("The symbol is not available in this exchange")
             else:
                 filter_contract = filter_contract.reset_index()
                 if 'expiry_date' in filter_contract:
@@ -540,7 +551,7 @@ class Aliceblue:
                 self.get_contract_master(exchange)
                 contract = pd.read_csv("%s.csv" % exchange)
             else:
-                return {"stat":"Not_ok","emsg":e}
+                return self._error_response(e)
         if exchange == 'INDICES':
             filter_contract = contract[contract['token'] == token]
             inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0], filter_contract['symbol'][0],'', '','')
@@ -548,7 +559,7 @@ class Aliceblue:
         else:
             filter_contract = contract[contract['Token'] == token]
             if len(filter_contract) == 0:
-                return {"stat": "Not_ok", "emsg": "The symbol is not available in this exchange"}
+                return self._error_response("The symbol is not available in this exchange")
             else:
                 filter_contract = filter_contract.reset_index()
                 if 'expiry_date' in filter_contract:
@@ -568,29 +579,30 @@ class Aliceblue:
             else:
                 edate_format = '%Y-%m-%d'
         else:
-            return {"stat":"Not_ok","emsg":"Invalid exchange"}
+            return self._error_response("Invalid exchange")
         if not symbol:
-            return {"stat": "Not_ok", "emsg": "Symbol is Null"}
+            return self._error_response("Symbol is Null")
         try:
             expiry_date=datetime.strptime(expiry_date, "%d-%m-%Y").date()
         except ValueError as e:
-            return {"stat": "Not_ok", "emsg": e}
+            return self._error_response(e)
         if type(is_CE) is bool:
             if is_CE == True:
                 option_type="CE"
             else:
                 option_type="PE"
         else:
-            return {"stat": "Not_ok", "emsg": "is_fut is not boolean value"}
+            return self._error_response("is_fut is not boolean value")
         # print(option_type)
         try:
             contract = pd.read_csv("%s.csv" % exch)
             # print(strike,is_fut)
         except OSError as e:
             if e.errno == 2:
-                return {"stat": "Not_ok", "emsg": "Contract master is not available."}
+                self.get_contract_master(exch)
+                contract = pd.read_csv("%s.csv" % exch)
             else:
-                return {"stat":"Not_ok","emsg":e}
+                return self._error_response(e)
         if is_fut == False:
             if strike:
                 filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Strike Price'] == strike)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
@@ -600,16 +612,19 @@ class Aliceblue:
             if strike == None:
                 filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == 'XX')&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
             else:
-                return {"stat": "Not_ok", "emsg": "No strike price for future"}
+                return self._error_response("No strike price for future")
         # print(len(filter_contract))
         if len(filter_contract) == 0:
-            return {"stat": "Not_ok", "emsg": "No Data"}
+            return self._error_response("No Data")
         else:
             inst=[]
             filter_contract = filter_contract.reset_index()
             for i in range(len(filter_contract)):
                 inst.append(Instrument(filter_contract['Exch'][i], filter_contract['Token'][i], filter_contract['Symbol'][i], filter_contract['Trading Symbol'][i], filter_contract['Expiry Date'][i],filter_contract['Lot Size'][i]))
-            return inst
+            if len(inst) == 1:
+                return inst[0]
+            else:
+                return inst
 
     def invalid_sess(self,session_ID):
         url = self.base_url + 'ws/invalidateSocketSess'
@@ -635,10 +650,10 @@ class Aliceblue:
         return response.json()
 
     def on_message(self,ws, message):
-        print(message)
+        self.__subscribe_callback(message)
         data = json.loads(message)
         if 's' in data and data['s'] == 'OK':
-            print("Socket Connected.")
+            self.ws_connection =True
             data = {
                 "k": self.subscriptions,
                 "t": 't',
@@ -650,7 +665,8 @@ class Aliceblue:
         print(error)
 
     def on_close(self,ws, close_status_code, close_msg):
-        print("### closed ###")
+        print("Websocket connection is closed! Reason:%s"%close_msg)
+        self.ws_connection = False
 
     def on_open(self,ws):
         initCon = {
@@ -670,7 +686,7 @@ class Aliceblue:
         # print(data)
         scrip_response = self._dummypost(scrip_Url, data)
         if scrip_response ==[]:
-            return {'stat':'Not_ok','emsg':'Symbol not found'}
+            return self._error_response('Symbol not found')
         else:
             inst=[]
             for i in range(len(scrip_response)):
@@ -678,30 +694,38 @@ class Aliceblue:
                 inst.append(Instrument(scrip_response[i]['exch'],scrip_response[i]['token'],scrip_response[i]['formattedInsName'],scrip_response[i]['symbol'],'',''))
             return inst
 
-    def start_websocket(self,script_subscription):
-        session_request=self.session_id
-        if session_request:
-            self.subscriptions= script_subscription
-            session_id = session_request
-            sha256_encryption1 = hashlib.sha256(session_id.encode('utf-8')).hexdigest()
-            self.ENC = hashlib.sha256(sha256_encryption1.encode('utf-8')).hexdigest()
-            invalidSess = self.invalid_sess(session_id)
-            if invalidSess['stat']=='Ok':
-                print("STAGE 1: Invalidate the previous session :",invalidSess['stat'])
-                createSess = self.createSession(session_id)
-                if createSess['stat']=='Ok':
-                    print("STAGE 2: Create the new session :", createSess['stat'])
-                    print("Connecting to Socket ...")
-                    websocket.enableTrace(False)
-                    self.ws = websocket.WebSocketApp(self._sub_urls['base_url_socket'],
-                                                on_open=self.on_open,
-                                                on_message=self.on_message,
-                                                on_close=self.on_close,
-                                                on_error=self.on_error)
-                    self.ws.run_forever(dispatcher=rel)  # Set dispatcher to automatic reconnection
-                    rel.signal(2, rel.abort)  # Keyboard Interrupt
-                    rel.dispatch()
-
+    def start_websocket(self,script_subscription=None,subscription_callback=None,check_subscription_callback=None):
+        if script_subscription == None:
+            return self._error_response("No script to subscribe. Please check the script instrument")
+        else:
+            if check_subscription_callback != None:
+                check_subscription_callback(self.script_subscription_instrument)
+            session_request=self.session_id
+            self.__subscribe_callback=subscription_callback
+            if session_request:
+                self.subscriptions= script_subscription
+                session_id = session_request
+                sha256_encryption1 = hashlib.sha256(session_id.encode('utf-8')).hexdigest()
+                self.ENC = hashlib.sha256(sha256_encryption1.encode('utf-8')).hexdigest()
+                invalidSess = self.invalid_sess(session_id)
+                if invalidSess['stat']=='Ok':
+                    print("STAGE 1: Invalidate the previous session :",invalidSess['stat'])
+                    createSess = self.createSession(session_id)
+                    if createSess['stat']=='Ok':
+                        print("STAGE 2: Create the new session :", createSess['stat'])
+                        print("Connecting to Socket ...")
+                        websocket.enableTrace(False)
+                        self.ws = websocket.WebSocketApp(self._sub_urls['base_url_socket'],
+                                                    on_open=self.on_open,
+                                                    on_message=self.on_message,
+                                                    on_close=self.on_close,
+                                                    on_error=self.on_error)
+                        try:
+                            self.ws.run_forever(dispatcher=rel)  # Set dispatcher to automatic reconnection
+                            rel.signal(2, rel.abort)  # Keyboard Interrupt
+                            rel.dispatch()
+                        except Exception as e:
+                            print("Error:",e)
 
 
 class Alice_Wrapper():
@@ -715,6 +739,7 @@ class Alice_Wrapper():
 
     def subscription(script_list):
         if len(script_list) > 0:
+            Aliceblue.script_subscription_instrument = script_list
             sub_prams=''
             # print(script_list)
             for i in range(len(script_list)):
@@ -751,3 +776,79 @@ class Alice_Wrapper():
                 }
                 old_response_data.append(old_json)
             return old_response_data
+
+    def get_balance(response):
+        print(len(response),'stat' not in response)
+        cash_pos=[]
+        for i in range(len(response)):
+            data={
+                            "utilized": {
+                                "var_margin": response[i]['varmargin'],
+                                "unrealised_m2m": response[i]['unrealizedMtomPrsnt'],
+                                "span_margin": response[i]['spanmargin'],
+                                "realised_m2m": response[i]['realizedMtomPrsnt'],
+                                "premium_present": response[i]['premiumPrsnt'],
+                                "pay_out": response[i]['payoutamount'],
+                                "multiplier": response[i]['multiplier'],
+                                "exposure_margin": response[i]['exposuremargin'],
+                                "elm": response[i]['elm'],
+                                "debits": response[i]['debits']
+                            },
+                            "segment": response[i]['segment'],
+                            "net": response[i]['net'],
+                            "category": response[i]['category'],
+                            "available": {
+                                "pay_in": response[i]['rmsPayInAmnt'],
+                                "notionalCash": response[i]['notionalCash'],
+                                "direct_collateral_value": response[i]['directcollateralvalue'],
+                                "credits": response[i]['credits'],
+                                "collateral_value": response[i]['collateralvalue'],
+                                "cashmarginavailable": response[i]['cashmarginavailable'],
+                                "adhoc_margin": response[i]['adhocMargin']
+                            }
+                        }
+            cash_pos.append(data)
+        if 'stat' not in response:
+            old_response = {
+                "status": "success",
+                "message": "",
+                "data": {
+                    "cash_positions": cash_pos
+                }
+            }
+            return old_response
+        else:
+            return response
+
+    def get_profile(response):
+        if 'stat' not in response:
+            print("present sir")
+            exch = response['exchEnabled']
+            exch_enabled = []
+            if '|' in exch:
+                exchange = exch.split('|')
+                for ex in exchange:
+                    data = ex.split('_')[0].upper()
+                    if data != '':
+                        exch_enabled.append(data)
+            else:
+                exch_enabled.append(exch.split('_')[0].upper())
+            old_response = {
+                "status": "success",
+                "message": "",
+                "data": {
+                    "phone": response['cellAddr'],
+                    "pan_number": "",
+                    "name": response['accountName'],
+                    "login_id": response['accountId'],
+                    "exchanges": exch_enabled,
+                    "email_address": response['emailAddr'],
+                    "dp_ids": [],
+                    "broker_name": "ALICEBLUE",
+                    "banks": [],
+                    "backoffice_enabled": None
+                }
+            }
+            return old_response
+        else:
+            return response
