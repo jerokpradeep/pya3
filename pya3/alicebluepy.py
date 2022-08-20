@@ -10,6 +10,7 @@ from collections import namedtuple
 import os
 import websocket
 import rel
+
 import threading
 
 logger = logging.getLogger(__name__)
@@ -17,9 +18,16 @@ logger = logging.getLogger(__name__)
 Instrument = namedtuple('Instrument', ['exchange', 'token', 'symbol','name', 'expiry', 'lot_size'])
 
 
+
 class TransactionType(enum.Enum):
     Buy = 'BUY'
     Sell = 'SELL'
+
+class LiveFeedType(enum.IntEnum):
+    MARKET_DATA     = 1
+    COMPACT         = 2
+    SNAPQUOTE       = 3
+    FULL_SNAPQUOTE  = 4
 
 class OrderType(enum.Enum):
     Market = 'MKT'
@@ -41,7 +49,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.17"
+    version = "1.0.18"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -86,6 +94,9 @@ class Aliceblue:
     ws_connection = False
     # response = requests.get(base_url);
     # Getscrip URI
+    __ws_thread = None
+    __stop_event = None
+
 
     _sub_urls = {
         # Authorization
@@ -134,6 +145,10 @@ class Aliceblue:
         self.disable_ssl = disable_ssl
         self.session_id = session_id
         self.base = base or self.base_url
+        self.__on_error = None
+        self.__on_disconnect = None
+        self.__on_open = None
+        self.__exchange_codes = None
 
     def _get(self, sub_url, data=None):
         """Get method declaration"""
@@ -370,15 +385,12 @@ class Aliceblue:
         placeorderresp = self._post("placeorder", data)
         return placeorderresp
 
-
     """Method to get Funds Data"""
-
     def get_balance(self):
         fundsresp = self._get("fundsrecord")
         return fundsresp
 
     """Method to call Modify Order"""
-
     def modify_order(self, transaction_type, instrument, product_type, order_id, order_type, quantity, price=0.0,trigger_price=0.0):
         if not isinstance(instrument, Instrument):
             raise TypeError("Required parameter instrument not of type Instrument")
@@ -416,7 +428,6 @@ class Aliceblue:
         return modifyorderresp
 
     """Method to call Exitbook  Order"""
-
     def exitboorder(self,nestOrderNumber,symbolOrderId,status, ):
         data = {'nestOrderNumber': nestOrderNumber,
                 'symbolOrderId': symbolOrderId,
@@ -425,7 +436,6 @@ class Aliceblue:
         return exitboorderresp
 
     """Method to get Position Book"""
-
     def positionbook(self,ret, ):
         data = {'ret': ret, }
         positionbookresp = self._post("positiondata", data)
@@ -649,24 +659,35 @@ class Aliceblue:
 
         return response.json()
 
+    def __ws_run_forever(self):
+        while self.__stop_event.is_set() is False:
+            try:
+                self.ws.run_forever(ping_interval=3, ping_payload='{"t":"h"}')
+            except Exception as e:
+                logger.warning(f"websocket run forever ended in exception, {e}")
+            sleep(0.1)
     def on_message(self,ws, message):
         self.__subscribe_callback(message)
         data = json.loads(message)
-        if 's' in data and data['s'] == 'OK':
-            self.ws_connection =True
-            data = {
-                "k": self.subscriptions,
-                "t": 't',
-                "m": "compact_marketdata"
-            }
-            ws.send(json.dumps(data))
+        # if 's' in data and data['s'] == 'OK':
+        #     self.ws_connection =True
+        #     data = {
+        #         "k": self.subscriptions,
+        #         "t": 't',
+        #         "m": "compact_marketdata"
+        #     }
+        #     ws.send(json.dumps(data))
 
     def on_error(self,ws, error):
-        print(error)
+        if (type(ws) is not websocket.WebSocketApp):  # This workaround is to solve the websocket_client's compatiblity issue of older versions. ie.0.40.0 which is used in upstox. Now this will work in both 0.40.0 & newer version of websocket_client
+            error = ws
+        if self.__on_error:
+            self.__on_error(error)
 
-    def on_close(self,ws, close_status_code, close_msg):
-        print("Websocket connection is closed! Reason:%s"%close_msg)
+    def on_close(self,*arguments, **keywords):
         self.ws_connection = False
+        if self.__on_disconnect:
+            self.__on_disconnect()
 
     def on_open(self,ws):
         initCon = {
@@ -677,6 +698,39 @@ class Aliceblue:
             "source": "API"
         }
         self.ws.send(json.dumps(initCon))
+        self.ws_connection = True
+        if self.__on_open:
+            self.__on_open()
+
+    def subscribe(self, instrument):
+        # print("Subscribed")
+        scripts=""
+        for __instrument in instrument:
+            scripts=scripts+__instrument.exchange+"|"+str(__instrument.token)+"#"
+        self.subscriptions = scripts[:-1]
+        data = {
+            "k": self.subscriptions,
+            "t": 't',
+            "m": "compact_marketdata"
+        }
+        self.ws.send(json.dumps(data))
+
+    def unsubscribe(self, instrument):
+        # print("UnSubscribed")
+        scripts = ""
+        if self.subscriptions:
+            split_subscribes = self.subscriptions.split('#')
+        for __instrument in instrument:
+            scripts = scripts + __instrument.exchange + "|" + str(__instrument.token) + "#"
+            if self.subscriptions:
+                split_subscribes.remove(__instrument.exchange + "|" + str(__instrument.token) )
+        self.subscriptions=split_subscribes
+        print(scripts[:-1])
+        data = {
+            "k": scripts[:-1],
+            "t": 'u'
+        }
+        self.ws.send(json.dumps(data))
 
     def search_instruments(self,exchange,symbol):
         base_url=self.base_url.replace('/AliceBlueAPIService/api','')
@@ -694,38 +748,53 @@ class Aliceblue:
                 inst.append(Instrument(scrip_response[i]['exch'],scrip_response[i]['token'],scrip_response[i]['formattedInsName'],scrip_response[i]['symbol'],'',''))
             return inst
 
-    def start_websocket(self,script_subscription=None,subscription_callback=None,check_subscription_callback=None):
-        if script_subscription == None:
-            return self._error_response("No script to subscribe. Please check the script instrument")
-        else:
-            if check_subscription_callback != None:
-                check_subscription_callback(self.script_subscription_instrument)
-            session_request=self.session_id
-            self.__subscribe_callback=subscription_callback
-            if session_request:
-                self.subscriptions= script_subscription
-                session_id = session_request
-                sha256_encryption1 = hashlib.sha256(session_id.encode('utf-8')).hexdigest()
-                self.ENC = hashlib.sha256(sha256_encryption1.encode('utf-8')).hexdigest()
-                invalidSess = self.invalid_sess(session_id)
-                if invalidSess['stat']=='Ok':
-                    print("STAGE 1: Invalidate the previous session :",invalidSess['stat'])
-                    createSess = self.createSession(session_id)
-                    if createSess['stat']=='Ok':
-                        print("STAGE 2: Create the new session :", createSess['stat'])
-                        print("Connecting to Socket ...")
-                        websocket.enableTrace(False)
-                        self.ws = websocket.WebSocketApp(self._sub_urls['base_url_socket'],
-                                                    on_open=self.on_open,
-                                                    on_message=self.on_message,
-                                                    on_close=self.on_close,
-                                                    on_error=self.on_error)
-                        try:
-                            self.ws.run_forever(dispatcher=rel)  # Set dispatcher to automatic reconnection
-                            rel.signal(2, rel.abort)  # Keyboard Interrupt
-                            rel.dispatch()
-                        except Exception as e:
-                            print("Error:",e)
+    def start_websocket(self,socket_open_callback=None,socket_close_callback=None,socket_error_callback=None,subscription_callback=None,check_subscription_callback=None,run_in_background=False):
+        if check_subscription_callback != None:
+            check_subscription_callback(self.script_subscription_instrument)
+        session_request=self.session_id
+        self.__on_open = socket_open_callback
+        self.__on_disconnect = socket_close_callback
+        self.__on_error = socket_error_callback
+        self.__subscribe_callback=subscription_callback
+
+        print(session_request)
+        if session_request:
+            session_id = session_request
+            sha256_encryption1 = hashlib.sha256(session_id.encode('utf-8')).hexdigest()
+            self.ENC = hashlib.sha256(sha256_encryption1.encode('utf-8')).hexdigest()
+            invalidSess = self.invalid_sess(session_id)
+            if invalidSess['stat']=='Ok':
+                print("STAGE 1: Invalidate the previous session :",invalidSess['stat'])
+                createSess = self.createSession(session_id)
+                if createSess['stat']=='Ok':
+                    print("STAGE 2: Create the new session :", createSess['stat'])
+                    print("Connecting to Socket ...")
+                    self.__stop_event = threading.Event()
+                    websocket.enableTrace(False)
+                    self.ws = websocket.WebSocketApp(self._sub_urls['base_url_socket'],
+                                                on_open=self.on_open,
+                                                on_message=self.on_message,
+                                                on_close=self.on_close,
+                                                on_error=self.on_error)
+
+                    # if run_in_background:
+                    #         print("Running background!")
+                    #         self.__ws_thread = threading.Thread(target=self.__ws_run_forever())
+                    #         self.__ws_thread.daemon = True
+                    #         self.__ws_thread.start()
+                    # else:
+                    #     try:
+                    #         self.ws.run_forever(dispatcher=rel)  # Set dispatcher to automatic reconnection
+                    #         rel.signal(2, rel.abort)  # Keyboard Interrupt
+                    #         rel.dispatch()
+                    #     except Exception as e:
+                    #         print("Error:",e)
+                    if run_in_background is True:
+                        self.__ws_thread = threading.Thread(target=self.__ws_run_forever)
+                        self.__ws_thread.daemon = True
+                        self.__ws_thread.start()
+                    else:
+                        self.__ws_run_forever()
 
 
 class Alice_Wrapper():
@@ -749,36 +818,58 @@ class Alice_Wrapper():
         else:
             return {'stat':'Not_ok','emsg':'Script response is not fetched properly. Please check once'}
 
-    def order_history(response_data):
-        if response_data:
-            old_response_data=[]
-            for new_json in response_data:
-                old_json = {
-                    "validity": new_json['Validity'],
-                    "trigger_price": new_json['Trgprc'],
-                    "transaction_type": new_json['Trantype'],
-                    "trading_symbol": new_json['Trsym'],
-                    "rejection_reason": new_json['RejReason'],
-                    "quantity": new_json['Qty'],
-                    "product": new_json['Pcode'],
-                    "price_to_fill": new_json['Prc'],
-                    "order_status": new_json['Status'],
-                    "oms_order_id": new_json['Nstordno'],
-                    "nest_request_id": new_json['RequestID'],
-                    "filled_quantity": new_json['Fillshares'],
-                    "exchange_time": new_json['orderentrytime'],
-                    "exchange_order_id": new_json['ExchOrdID'],
-                    "exchange": new_json['Exchange'],
-                    "disclosed_quantity": new_json['Dscqty'],
-                    "client_id": new_json['user'],
-                    "average_price": new_json['Avgprc'],
-                    "order_tag":new_json['Remarks']
+    def get_order_history(response):
+        if response:
+            pending = []
+            completed = []
+            for i in range(len(response)):
+                data = {
+                    "validity": response[i]['Validity'],
+                    "user_order_id": response[i]['RequestID'],
+                    "trigger_price": response[i]['Trgprc'],
+                    "transaction_type": response[i]['Trantype'],
+                    "trading_symbol": response[i]['Trsym'],
+                    "remaining_quantity": response[i]['Unfilledsize'],
+                    "rejection_reason": response[i]['RejReason'],
+                    "quantity": response[i]['Qty'],
+                    "product": response[i]['Pcode'],
+                    "price": response[i]['Prc'],
+                    "order_type": response[i]['Prctype'],
+                    "order_tag": response[i]['remarks'],
+                    "order_status": response[i]['Status'],
+                    "order_entry_time": response[i]['iSinceBOE'],
+                    "oms_order_id": response[i]['Nstordno'],
+                    "nest_request_id": response[i]['RequestID'],
+                    "lotsize": response[i]['multiplier'],
+                    "login_id": response[i]['user'],
+                    "leg_order_indicator": "",
+                    "instrument_token": response[i]['token'],
+                    "filled_quantity": response[i]['Fillshares'],
+                    "exchange_time": response[i]['OrderedTime'],
+                    "exchange_order_id": response[i]['ExchOrdID'],
+                    "exchange": response[i]['Exchange'],
+                    "disclosed_quantity": response[i]['Dscqty'],
+                    "client_id": response[i]['accountId'],
+                    "average_price": float(response[i]['Avgprc'])
                 }
-                old_response_data.append(old_json)
-            return old_response_data
+                if response[i]['Status'] == 'open':
+                    pending.append(data)
+                else:
+                    completed.append(data)
+
+            old_response = {
+                "status": "success",
+                "message": "",
+                "data": {
+                    "pending_orders": pending,
+                    "completed_orders": completed
+                }
+            }
+            return old_response
+        else:
+            return response
 
     def get_balance(response):
-        print(len(response),'stat' not in response)
         cash_pos=[]
         for i in range(len(response)):
             data={
@@ -822,7 +913,6 @@ class Alice_Wrapper():
 
     def get_profile(response):
         if 'stat' not in response:
-            print("present sir")
             exch = response['exchEnabled']
             exch_enabled = []
             if '|' in exch:
@@ -849,6 +939,222 @@ class Alice_Wrapper():
                     "backoffice_enabled": None
                 }
             }
+            return old_response
+        else:
+            return response
+
+    def get_daywise_positions(response):
+        if 'stat' not in response:
+            true = True
+            positions = []
+            for i in range(len(response)):
+                data = {
+                    "total_buy_quantity": int(response[i]['Bqty']),
+                    "instrument_token": response[i]['Token'],
+                    "close_price_mtm": '',
+                    "close_price": '',
+                    "total_sell_quantity": int(response[i]['Sqty']),
+                    "buy_amount_mtm": response[i]['Fillbuyamt'].replace(',', ''),
+                    "average_sell_price": response[i]['Sellavgprc'],
+                    "sell_amount": response[i]['Fillsellamt'],
+                    "average_buy_price_mtm": response[i]['Buyavgprc'],
+                    "oms_order_id": '',
+                    "trading_symbol": response[i]['Tsym'],
+                    "unrealised_pnl": response[i]['unrealisedprofitloss'],
+                    "sell_amount_mtm": response[i]['Fillsellamt'],
+                    "product": response[i]['Pcode'],
+                    "cf_buy_quantity": '',
+                    "enabled": '',
+                    "cf_average_sell_price": '',
+                    "average_buy_price": response[i]['Buyavgprc'],
+                    "net_amount_mtm": response[i]['MtoM'],
+                    "ltp": response[i]['LTP'],
+                    "realised_pnl": response[i]['realisedprofitloss'],
+                    "fill_id": response[i]['BEP'],
+                    "cf_average_buy_price": '',
+                    "cf_sell_quantity": '',
+                    "bep": response[i]['BEP'],
+                    "buy_amount": response[i]['Fillbuyamt'].replace(',', ''),
+                    "client_id": response[i]['actid'],
+                    "net_quantity": int(response[i]['Netqty']),
+                    "average_sell_price_mtm": response[i]['Sellavgprc'],
+                    "buy_quantity": response[i]['Bqty'],
+                    "strike_price": response[i]['Stikeprc'],
+                    "multiplier": '',
+                    "net_amount": response[i]['Netamt'],
+                    "exchange": response[i]['Exchange'],
+                    "m2m": response[i]['MtoM'],
+                    "sell_quantity": response[i]['Sqty']
+                }
+                positions.append(data)
+
+            old_response = {
+                "status": "success",
+                "message": "",
+                "data": {
+                    "positions": positions
+                }
+            }
+            return old_response
+
+    def get_netwise_positions(response):
+        if 'stat' not in response:
+            positions = []
+            true = True
+            for i in range(len(response)):
+                data = {
+                    "total_buy_quantity": int(response[i]['Bqty']),
+                    "instrument_token": response[i]['Token'],
+                    "close_price_mtm": '',
+                    "close_price": '',
+                    "total_sell_quantity": int(response[i]['Sqty']),
+                    "buy_amount_mtm": response[i]['Fillbuyamt'].replace(',', ''),
+                    "average_sell_price": response[i]['Sellavgprc'],
+                    "sell_amount": response[i]['Fillsellamt'],
+                    "average_buy_price_mtm": response[i]['Buyavgprc'],
+                    "oms_order_id": '',
+                    "trading_symbol": response[i]['Tsym'],
+                    "unrealised_pnl": response[i]['unrealisedprofitloss'],
+                    "sell_amount_mtm": response[i]['Fillsellamt'],
+                    "product": response[i]['Pcode'],
+                    "cf_buy_quantity": '',
+                    "enabled": '',
+                    "cf_average_sell_price": '',
+                    "average_buy_price": response[i]['Buyavgprc'],
+                    "net_amount_mtm": response[i]['MtoM'],
+                    "ltp": response[i]['LTP'],
+                    "realised_pnl": response[i]['realisedprofitloss'],
+                    "fill_id": response[i]['BEP'],
+                    "cf_average_buy_price": '',
+                    "cf_sell_quantity": '',
+                    "bep": response[i]['BEP'],
+                    "buy_amount": response[i]['Fillbuyamt'].replace(',', ''),
+                    "client_id": response[i]['actid'],
+                    "net_quantity": int(response[i]['Netqty']),
+                    "average_sell_price_mtm": response[i]['Sellavgprc'],
+                    "buy_quantity": response[i]['Bqty'],
+                    "strike_price": response[i]['Stikeprc'],
+                    "multiplier": '',
+                    "net_amount": response[i]['Netamt'],
+                    "exchange": response[i]['Exchange'],
+                    "m2m": response[i]['MtoM'],
+                    "sell_quantity": response[i]['Sqty']
+                }
+                positions.append(data)
+
+            old_response = {
+                "status": "success",
+                "message": "",
+                "data": {
+                    "positions": positions
+                }
+            }
+            return old_response
+
+    def get_holding_positions(response):
+        if response['stat'] == 'Ok':
+            total_holdings = response['HoldingVal']
+            holding = []
+            client_id = response['clientid']
+            for i in range(len(total_holdings)):
+                data = {
+                    "withheld_qty": total_holdings[i]['WHqty'],
+                    "used_quantity": total_holdings[i]['Usedqty'],
+                    "trading_symbol": total_holdings[i]['Bsetsym'] if total_holdings[i]['ExchSeg1'] == 'BSE' else total_holdings[i]['Nsetsym'],
+                    "target_product": total_holdings[i]['Tprod'],
+                    "t1_quantity": total_holdings[i]['SellableQty'],
+                    "quantity": total_holdings[i]['Holdqty'],
+                    "product": total_holdings[i]['Pcode'],
+                    "price": total_holdings[i]['LTcse'],
+                    "nse_ltp": total_holdings[i]['LTnse'],
+                    "isin": total_holdings[i]['isin'],
+                    "instrument_token": total_holdings[i]['Token1'],
+                    "holding_update_quantity": total_holdings[i]['HUqty'],
+                    "haircut": total_holdings[i]['Haircut'],
+                    "exchange": total_holdings[i]['ExchSeg1'],
+                    "collateral_update_quantity": total_holdings[i]['CUqty'],
+                    "collateral_type": total_holdings[i]['Coltype'],
+                    "collateral_quantity": total_holdings[i]['Colqty'],
+                    "client_id": client_id,
+                    "buy_avg_mtm": total_holdings[i]['pdc'],
+                    "buy_avg": total_holdings[i]['Price'],
+                    "bse_ltp": total_holdings[i]['LTbse']
+                }
+                holding.append(data)
+            old_response = {
+                "status": "success",
+                "message": "",
+                "data": {
+                    "holdings": holding
+                }
+            }
+            return old_response
+        else:
+            return response
+
+    def place_order(response):
+        if response[0]['stat']=='Ok':
+            old_response = {'status': 'success', 'message': '', 'data': {'oms_order_id': response[0]['NOrdNo']}}
+            return old_response
+        else:
+            return response
+
+    def place_basket_order(response):
+        Flag = 0
+        for i in range(len(response)):
+            if response[i]['stat'] == 'Ok':
+                Flag = Flag + 1
+        if Flag - len(response) == 0:
+            old_response = {'status': 'success', 'message': 'Order placed successfully', 'data': {}}
+            return old_response
+        else:
+            return response
+
+    def modify_order(response):
+        if response['stat'] == 'Ok':
+            data = response['Result'].split(":")
+            old_response = {'status': 'success', 'message': '', 'data': {'oms_order_id': [data[1]]}}
+            return old_response
+        else:
+            return response
+
+    def get_trade_book(response):
+        if response:
+            trades = []
+            for i in range(len(response)):
+                data = {
+                    "user_order_id": response[i]['NOReqID'],
+                    "transaction_type": response[i]['Trantype'],
+                    "trading_symbol": response[i]['Tsym'],
+                    "trade_price": float(response[i]['Price']),
+                    "trade_id": response[i]['FillId'],
+                    "product": response[i]['Pcode'],
+                    "order_entry_time": response[i]['iSinceBOE'],
+                    "oms_order_id": response[i]['Nstordno'],
+                    "instrument_token": response[i]['Symbol'],
+                    "filled_quantity": response[i]['Filledqty'],
+                    "exchange_time": response[i]['Exchtime'],
+                    "exchange_order_id": response[i]['ExchordID'],
+                    "exchange": response[i]['Exchange']
+                }
+                trades.append(data)
+            old_response = {
+                "status": "success",
+                "message": "",
+                "data": {
+                    "trades": trades
+                }
+            }
+            return old_response
+        else:
+            return response
+
+    def cancel_order(response):
+        if 'stat' in response:
+            if response['stat'] == 'Ok':
+                old_response={'status': 'success', 'message': '', 'data': {'status': response['stat']}}
+            else:
+                old_response={'status': '', 'message': '', 'data': {'status': response['stat']}}
             return old_response
         else:
             return response
