@@ -553,7 +553,7 @@ alice.cancel_order('NSE','191015000018737','ASHOKLEY-EQ')) #Cancel an open order
 
 #### Get order history of a particular order
 ```python
-print(alice.cancel_order(alice.get_instrument_by_token('MCX', 242508),'220803000207716'))
+print(alice.get_order_history(alice.get_instrument_by_token('MCX', 242508),'220803000207716'))
 ```
 
 #### Get order history of all orders.
