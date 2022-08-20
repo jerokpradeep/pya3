@@ -49,7 +49,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.18"
+    version = "1.0.19"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -666,6 +666,7 @@ class Aliceblue:
             except Exception as e:
                 logger.warning(f"websocket run forever ended in exception, {e}")
             sleep(0.1)
+
     def on_message(self,ws, message):
         self.__subscribe_callback(message)
         data = json.loads(message)
@@ -689,6 +690,11 @@ class Aliceblue:
         if self.__on_disconnect:
             self.__on_disconnect()
 
+    def stop_websocket(self):
+        self.ws_connection = False
+        self.ws.close()
+        self.__stop_event.set()
+
     def on_open(self,ws):
         initCon = {
             "susertoken": self.ENC,
@@ -710,9 +716,9 @@ class Aliceblue:
         self.subscriptions = scripts[:-1]
         data = {
             "k": self.subscriptions,
-            "t": 't',
-            "m": "compact_marketdata"
+            "t": 't'
         }
+        # "m": "compact_marketdata"
         self.ws.send(json.dumps(data))
 
     def unsubscribe(self, instrument):
@@ -725,7 +731,7 @@ class Aliceblue:
             if self.subscriptions:
                 split_subscribes.remove(__instrument.exchange + "|" + str(__instrument.token) )
         self.subscriptions=split_subscribes
-        print(scripts[:-1])
+        # print(scripts[:-1])
         data = {
             "k": scripts[:-1],
             "t": 'u'
@@ -756,8 +762,8 @@ class Aliceblue:
         self.__on_disconnect = socket_close_callback
         self.__on_error = socket_error_callback
         self.__subscribe_callback=subscription_callback
-
-        print(session_request)
+        if self.__stop_event != None and self.__stop_event.is_set():
+            self.__stop_event.clear()
         if session_request:
             session_id = session_request
             sha256_encryption1 = hashlib.sha256(session_id.encode('utf-8')).hexdigest()

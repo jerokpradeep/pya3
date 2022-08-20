@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.18**
+* **Current Version: 1.0.19**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -464,30 +464,25 @@ print(alice.place_basket_order(orders))
 ### Websocket
 Subscribe script and Connect the Websocket
 ```python
-LTP = 0
-socket_opened = False
-subscribe_flag = False
-
-def socket_open():
+def socket_open():  # Socket open callback function
     print("Connected")
     global socket_opened
     socket_opened = True
-    if subscribe_flag:
-        alice.subscribe(
-            [alice.get_instrument_by_token("MCX", 242459), alice.get_instrument_by_token("MCX", 242738)])
+    if subscribe_flag:  # This is used to resubscribe the script when reconnect the socket.
+        alice.subscribe(subscribe_list)
 
-def socket_close():
+def socket_close():  # On Socket close this callback function will trigger
     global socket_opened, LTP
     socket_opened = False
     LTP = 0
     print("Closed")
 
-def socket_error(message):
+def socket_error(message):  # Socket Error Message will receive in this callback function
     global LTP
     LTP = 0
     print("Error :", message)
 
-def feed_data(message):
+def feed_data(message):  # Socket feed data will receive in this callback function
     global LTP, subscribe_flag
     feed_message = json.loads(message)
     if feed_message["t"] == "ck":
@@ -502,25 +497,35 @@ def feed_data(message):
         pass
     else:
         print("Feed :", feed_message)
-        LTP = feed_message['bp1'] if 'bp1' in feed_message else LTP
+        LTP = feed_message[
+            'lp'] if 'lp' in feed_message else LTP  # If LTP in the response it will store in LTP variable
 
-def subscription_list(subscrip_list):
-    print("Subscription List:")
-    for list in subscrip_list:
-        print("Exchange: %s ,Symbol: %s ,Token: %s" % (list.exchange, list.symbol, list.token))
-    print("-----------------------------------------------------------------------------------")
-
+# Socket Connection Request
 alice.start_websocket(socket_open_callback=socket_open, socket_close_callback=socket_close,
-                      socket_error_callback=socket_error, subscription_callback=feed_data,
-                      check_subscription_callback=subscription_list, run_in_background=True)
+                      socket_error_callback=socket_error, subscription_callback=feed_data, run_in_background=True)
 
 while not socket_opened:
     pass
+global subscribe_list, unsubscribe_list
 
-alice.subscribe([alice.get_instrument_by_token("MCX", 242459), alice.get_instrument_by_token("MCX", 242738)])
-sleep(3)
-alice.unsubscribe([alice.get_instrument_by_token("MCX", 242459), alice.get_instrument_by_token("MCX", 242738)])
-sleep(8)
+subscribe_list = [alice.get_instrument_by_token('INDICES', 26000)]
+alice.subscribe(subscribe_list)
+print(datetime.now())
+sleep(10)
+print(datetime.now())
+# unsubscribe_list = [alice.get_instrument_by_symbol("NSE", "RELIANCE")]
+# alice.unsubscribe(unsubscribe_list)
+# sleep(8)
+
+# Stop the websocket
+alice.stop_websocket()
+sleep(10)
+print(datetime.now())
+
+# Connect the socket after socket close
+alice.start_websocket(socket_open_callback=socket_open, socket_close_callback=socket_close,
+                      socket_error_callback=socket_error, subscription_callback=feed_data, run_in_background=True)
+
 ```
 
 ### Modify an order
