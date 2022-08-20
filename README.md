@@ -464,6 +464,10 @@ print(alice.place_basket_order(orders))
 ### Websocket
 Subscribe script and Connect the Websocket
 ```python
+LTP = 0
+socket_opened = False
+subscribe_flag = False
+
 def socket_open():
     print("Connected")
     global socket_opened
