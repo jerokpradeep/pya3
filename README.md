@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.19**
+* **Current Version: 1.0.20**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -576,6 +576,22 @@ print(alice.get_trade_book())
 Get Current OHLC, Upper and Lower circuit data
 ```python
 print(alice.get_scrip_info(alice.get_instrument_by_token('MCX', 242508)))
+```
+
+#### Get Historical Data
+Get Historical data of Open, High, Low, Close and Volume of Minutes, Day and Month.
+```python
+from _datetime import datetime
+
+alice = Aliceblue(user_id='',api_key='')
+
+instrument = alice.get_instrument_by_symbol("NFO", "RELIANCE")
+from_datetime = datetime.now() - datetime.timedelta(days=7)     # From last & days
+to_datetime = datetime.now()                                    # To now
+interval = "15"       # ["1", "2", "3", "4", "5", "10", "15", "30", "60", "120", "180", "240", "D", "1W", "1M"]
+indices = False      # For Getting index data
+print(alice.get_historical(instrument, from_datetime, to_datetime, interval, indices))
+
 ```
 
 ### Order properties as enums

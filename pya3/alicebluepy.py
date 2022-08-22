@@ -49,7 +49,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.19"
+    version = "1.0.20"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -538,7 +538,7 @@ class Aliceblue:
                                   '', '', '')
                 return inst
         else:
-            filter_contract = contract[contract['Symbol'] == symbol.upper()]
+            filter_contract = contract[(contract['Symbol'] == symbol.upper())|(contract['Trading Symbol'] == symbol.upper())]
             if len(filter_contract) == 0:
                 return self._error_response("The symbol is not available in this exchange")
             else:
@@ -615,12 +615,12 @@ class Aliceblue:
                 return self._error_response(e)
         if is_fut == False:
             if strike:
-                filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Strike Price'] == strike)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
+                filter_contract = contract[(contract['Exch'] == exch)&((contract['Symbol'] == symbol)|(contract['Trading Symbol'] == symbol))&(contract['Option Type'] == option_type)&(contract['Strike Price'] == strike)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
             else:
-                filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == option_type)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
+                filter_contract = contract[(contract['Exch'] == exch)&((contract['Symbol'] == symbol)|(contract['Trading Symbol'] == symbol))&(contract['Option Type'] == option_type)&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
         if is_fut == True:
             if strike == None:
-                filter_contract = contract[(contract['Exch'] == exch)&(contract['Symbol'] == symbol)&(contract['Option Type'] == 'XX')&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
+                filter_contract = contract[(contract['Exch'] == exch)&((contract['Symbol'] == symbol)|(contract['Trading Symbol'] == symbol))&(contract['Option Type'] == 'XX')&(contract['Expiry Date'] == expiry_date.strftime(edate_format))]
             else:
                 return self._error_response("No strike price for future")
         # print(len(filter_contract))
@@ -801,6 +801,22 @@ class Aliceblue:
                         self.__ws_thread.start()
                     else:
                         self.__ws_run_forever()
+
+    def get_historical(self, instrument, from_datetime, to_datetime, interval, indices=False):
+        # intervals = ["1", "2", "3", "4", "5", "10", "15", "30", "60", "120", "180", "240", "D", "1W", "1M"]
+        params = {"symbol": instrument.token,
+                  "exchange": instrument.exchange if not indices else f"{instrument.exchange}::index",
+                  "from": str(int(from_datetime.timestamp())),
+                  "to": str(int(to_datetime.timestamp())),
+                  "resolution": interval,
+                  "user": self.user_id}
+        lst = requests.get(
+            f"https://a3.aliceblueonline.com/rest/AliceBlueAPIService/chart/history?", params=params).json()
+        df = pd.DataFrame(lst)
+        df = df.rename(columns={'t': 'datetime', 'o': 'open', 'h': 'high', 'l': 'low', 'c': 'close', 'v': 'volume'})
+        df = df[['datetime', 'open', 'high', 'low', 'close', 'volume']]
+        df["datetime"] = df["datetime"].apply(lambda x: datetime.fromtimestamp(x))
+        return df
 
 
 class Alice_Wrapper():
@@ -1164,3 +1180,4 @@ class Alice_Wrapper():
             return old_response
         else:
             return response
+
