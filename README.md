@@ -581,7 +581,7 @@ print(alice.get_scrip_info(alice.get_instrument_by_token('MCX', 242508)))
 #### Get Historical Data
 Get Historical data of Open, High, Low, Close and Volume of Minutes, Day and Month.
 ```python
-from _datetime import datetime
+from datetime import datetime
 
 alice = Aliceblue(user_id='',api_key='')
 
