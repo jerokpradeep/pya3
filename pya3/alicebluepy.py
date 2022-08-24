@@ -731,11 +731,12 @@ class Aliceblue:
             if self.subscriptions:
                 split_subscribes.remove(__instrument.exchange + "|" + str(__instrument.token) )
         self.subscriptions=split_subscribes
-        # print(scripts[:-1])
+
         data = {
             "k": scripts[:-1],
-            "t": 'u'
+            "t": "u"
         }
+        print(data)
         self.ws.send(json.dumps(data))
 
     def search_instruments(self,exchange,symbol):
