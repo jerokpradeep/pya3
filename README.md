@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.20**
+* **Current Version: 1.0.21**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -52,6 +52,12 @@ There is only two class in the whole library: `AliceBlue` and `Alice_Wrapper`. T
 With a Session ID, you can instantiate an AliceBlue object. Ideally you only need to create a Session ID once every time login the trading account with password. After you have the Session ID, you can store it
 separately for re-use.
 
+### Rate Limits
+The following are the rate limits for API users:
+1. Orders - NOT LIMITED. Placing a new order, Modifying an existing order, square off positions and Cancelling an order are all not limited.
+2. All other requests - Limited to 1800 requests per 15 minutes. This limit will be reset every 15 minutes to 1800 again.
+
+**Note:** In order to make sure all clients requests are treated equally, AliceBlue has set up certain limits to the number of requests each client can make through API. 
 ### REST Documentation
 The original REST API that this SDK is based on is available online.
    [Alice Blue API REST documentation](https://v2api.aliceblueonline.com)
@@ -462,7 +468,7 @@ print(alice.place_basket_order(orders))
 ```
 
 ### Websocket
-Subscribe script and Connect the Websocket
+Connect the Websocket and subscribe script. To get market depth please set market_depth as `True`
 ```python
 LTP = 0
 socket_opened = False
@@ -508,11 +514,10 @@ def feed_data(message):  # Socket feed data will receive in this callback functi
 
 # Socket Connection Request
 alice.start_websocket(socket_open_callback=socket_open, socket_close_callback=socket_close,
-                      socket_error_callback=socket_error, subscription_callback=feed_data, run_in_background=True)
+                      socket_error_callback=socket_error, subscription_callback=feed_data, run_in_background=True,market_depth=False)
 
 while not socket_opened:
     pass
-global subscribe_list, unsubscribe_list
 
 subscribe_list = [alice.get_instrument_by_token('INDICES', 26000)]
 alice.subscribe(subscribe_list)

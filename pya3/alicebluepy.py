@@ -10,6 +10,7 @@ from collections import namedtuple
 import os
 import websocket
 import rel
+import ssl
 
 import threading
 
@@ -49,7 +50,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.20"
+    version = "1.0.21"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -96,6 +97,7 @@ class Aliceblue:
     # Getscrip URI
     __ws_thread = None
     __stop_event = None
+    market_depth=None
 
 
     _sub_urls = {
@@ -628,9 +630,12 @@ class Aliceblue:
             return self._error_response("No Data")
         else:
             inst=[]
+            token=[]
             filter_contract = filter_contract.reset_index()
             for i in range(len(filter_contract)):
-                inst.append(Instrument(filter_contract['Exch'][i], filter_contract['Token'][i], filter_contract['Symbol'][i], filter_contract['Trading Symbol'][i], filter_contract['Expiry Date'][i],filter_contract['Lot Size'][i]))
+                if filter_contract['Token'][i] not in token:
+                    token.append(filter_contract['Token'][i])
+                    inst.append(Instrument(filter_contract['Exch'][i], filter_contract['Token'][i], filter_contract['Symbol'][i], filter_contract['Trading Symbol'][i], filter_contract['Expiry Date'][i],filter_contract['Lot Size'][i]))
             if len(inst) == 1:
                 return inst[0]
             else:
@@ -662,7 +667,7 @@ class Aliceblue:
     def __ws_run_forever(self):
         while self.__stop_event.is_set() is False:
             try:
-                self.ws.run_forever(ping_interval=3, ping_payload='{"t":"h"}')
+                self.ws.run_forever(ping_interval=3, ping_payload='{"t":"h"}',sslopt={"cert_reqs": ssl.CERT_NONE})
             except Exception as e:
                 logger.warning(f"websocket run forever ended in exception, {e}")
             sleep(0.1)
@@ -714,9 +719,13 @@ class Aliceblue:
         for __instrument in instrument:
             scripts=scripts+__instrument.exchange+"|"+str(__instrument.token)+"#"
         self.subscriptions = scripts[:-1]
+        if self.market_depth:
+            t = "d" # Subscribe Depth
+        else:
+            t= "t" # Subsribe token
         data = {
             "k": self.subscriptions,
-            "t": 't'
+            "t": t
         }
         # "m": "compact_marketdata"
         self.ws.send(json.dumps(data))
@@ -732,11 +741,15 @@ class Aliceblue:
                 split_subscribes.remove(__instrument.exchange + "|" + str(__instrument.token) )
         self.subscriptions=split_subscribes
 
+        if self.market_depth:
+            t = "ud"
+        else:
+            t= "u"
+
         data = {
             "k": scripts[:-1],
-            "t": "u"
+            "t": t
         }
-        print(data)
         self.ws.send(json.dumps(data))
 
     def search_instruments(self,exchange,symbol):
@@ -755,7 +768,7 @@ class Aliceblue:
                 inst.append(Instrument(scrip_response[i]['exch'],scrip_response[i]['token'],scrip_response[i]['formattedInsName'],scrip_response[i]['symbol'],'',''))
             return inst
 
-    def start_websocket(self,socket_open_callback=None,socket_close_callback=None,socket_error_callback=None,subscription_callback=None,check_subscription_callback=None,run_in_background=False):
+    def start_websocket(self,socket_open_callback=None,socket_close_callback=None,socket_error_callback=None,subscription_callback=None,check_subscription_callback=None,run_in_background=False,market_depth=False):
         if check_subscription_callback != None:
             check_subscription_callback(self.script_subscription_instrument)
         session_request=self.session_id
@@ -763,6 +776,7 @@ class Aliceblue:
         self.__on_disconnect = socket_close_callback
         self.__on_error = socket_error_callback
         self.__subscribe_callback=subscription_callback
+        self.market_depth = market_depth
         if self.__stop_event != None and self.__stop_event.is_set():
             self.__stop_event.clear()
         if session_request:
@@ -811,8 +825,7 @@ class Aliceblue:
                   "to": str(int(to_datetime.timestamp())),
                   "resolution": interval,
                   "user": self.user_id}
-        lst = requests.get(
-            f"https://a3.aliceblueonline.com/rest/AliceBlueAPIService/chart/history?", params=params).json()
+        lst = requests.get(f"https://a3.aliceblueonline.com/rest/AliceBlueAPIService/chart/history?", params=params).json()
         df = pd.DataFrame(lst)
         df = df.rename(columns={'t': 'datetime', 'o': 'open', 'h': 'high', 'l': 'low', 'c': 'close', 'v': 'volume'})
         df = df[['datetime', 'open', 'high', 'low', 'close', 'volume']]
