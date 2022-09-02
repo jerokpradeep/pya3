@@ -557,7 +557,8 @@ print(
 ### Cancel an order
 
 ```python
-alice.cancel_order('NSE','191015000018737','ASHOKLEY-EQ')) #Cancel an open order
+print(alice.cancel_order(alice.get_instrument_by_token('MCX', 242508),'191015000018737')) #Cancel an open order
+print(alice.cancel_order(alice.get_instrument_by_symbol('NSE', "RELIANCE-EQ"),'220803000207716')) #Cancel an open order
 ```
 
 ### Getting order history and trade details
