@@ -50,7 +50,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.21"
+    version = "1.0.22"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -214,7 +214,7 @@ class Aliceblue:
         data = {'userId': self.user_id.upper()}
         response = self._post("encryption_key", data)
         if response['encKey'] is None:
-            return response['emsg']
+            return response
         else:
             data = encrypt_string(self.user_id.upper() + self.api_key + response['encKey'])
         data = {'userId': self.user_id.upper(), 'userData': data}
@@ -565,7 +565,7 @@ class Aliceblue:
             else:
                 return self._error_response(e)
         if exchange == 'INDICES':
-            filter_contract = contract[contract['token'] == token]
+            filter_contract = contract[contract['token'] == token].reset_index(drop=False)
             inst = Instrument(filter_contract['exch'][0], filter_contract['token'][0], filter_contract['symbol'][0],'', '','')
             return inst
         else:

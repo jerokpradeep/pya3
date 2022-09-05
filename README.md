@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.21**
+* **Current Version: 1.0.22**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -51,6 +51,8 @@ Python >=3.7
 There is only two class in the whole library: `AliceBlue` and `Alice_Wrapper`. The `get_session_id` static method is used to retrieve a Session ID from the alice blue server. A Session ID is valid until the trading account logout.
 With a Session ID, you can instantiate an AliceBlue object. Ideally you only need to create a Session ID once every time login the trading account with password. After you have the Session ID, you can store it
 separately for re-use.
+
+#### NOTE: User should Login through Web(a3.aliceblueonline.com) or SSO or Mobile at least once in a day, before connecting the API
 
 ### Rate Limits
 The following are the rate limits for API users:
