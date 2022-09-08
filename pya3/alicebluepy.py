@@ -50,7 +50,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.22"
+    version = "1.0.23"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -262,10 +262,8 @@ class Aliceblue:
                     return order
 
     """Method to call Cancel Orders"""
-    def cancel_order(self, instrument,nestordernmbr):
-        data = {'exch': instrument.exchange,
-                'nestOrderNumber': nestordernmbr,
-                'trading_symbol': instrument.name}
+    def cancel_order(self,nestordernmbr):
+        data = {'nestOrderNumber': nestordernmbr}
         cancelresp = self._post("cancelorder", data)
         return cancelresp
 
@@ -385,7 +383,10 @@ class Aliceblue:
                  "orderTag":order_tag}]
         # print(data)
         placeorderresp = self._post("placeorder", data)
-        return placeorderresp
+        if len(placeorderresp)==1:
+            return placeorderresp[0]
+        else:
+            return placeorderresp
 
     """Method to get Funds Data"""
     def get_balance(self):
@@ -499,11 +500,13 @@ class Aliceblue:
                      "trailing_stop_loss": trailing_sl,
                      "trigPrice": trigPrice,
                      "orderTag":ordertag}
-
             data.append(request_data)
         # print(data)
         placeorderresp = self._post("placeorder", data)
-        return placeorderresp
+        if len(placeorderresp) == 1:
+            return placeorderresp[0]
+        else:
+            return placeorderresp
 
     def get_contract_master(self,exchange):
         if len(exchange) == 3 or exchange == 'INDICES':

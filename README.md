@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.22**
+* **Current Version: 1.0.23**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -176,7 +176,7 @@ Get a single instrument by it's name:
 print(alice.get_instrument_by_symbol('NSE','ONGC'))
 print(alice.get_instrument_by_symbol('BSE','TATASTEEL'))
 print(alice.get_instrument_by_symbol('MCX','GOLDM'))
-print(alice.get_instrument_by_symbol('INDICES','NIFTY'))
+print(alice.get_instrument_by_symbol('INDICES','NIFTY 50'))
 print(alice.get_instrument_by_symbol('INDICES','NIFTY BANK'))
 ```
 
@@ -559,8 +559,8 @@ print(
 ### Cancel an order
 
 ```python
-print(alice.cancel_order(alice.get_instrument_by_token('MCX', 242508),'191015000018737')) #Cancel an open order
-print(alice.cancel_order(alice.get_instrument_by_symbol('NSE', "RELIANCE-EQ"),'220803000207716')) #Cancel an open order
+print(alice.cancel_order('191015000018737')) #Cancel an open order
+print(alice.cancel_order('220803000207716')) #Cancel an open order
 ```
 
 ### Getting order history and trade details
