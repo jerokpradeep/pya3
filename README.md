@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.23**
+* **Current Version: 1.0.24**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -192,12 +192,12 @@ print(alice.get_instrument_by_token('INDICES',26009)) # Bank Nifty
 Get FNO instruments easily by mentioning expiry, strike & call or put.
 
 ```python
-print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="25-08-2022", is_fut=True,strike=None, is_CE=False))
-print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="04-08-2022", is_fut=False,strike=37700, is_CE=False))
-print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="04-08-2022", is_fut=False,strike=37700, is_CE=True))
-print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="26-08-2022", is_fut=True,strike=None, is_CE=False))
-print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="05-08-2022", is_fut=False,strike=79.50000, is_CE=False))
-print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="26-08-2022", is_fut=False,strike=79.50000, is_CE=True))
+print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="2022-09-25", is_fut=True,strike=None, is_CE=False))
+print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="2022-09-04", is_fut=False,strike=37700, is_CE=False))
+print(alice.get_instrument_for_fno(exch="NFO",symbol='BANKNIFTY', expiry_date="2022-09-04", is_fut=False,strike=37700, is_CE=True))
+print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="2022-09-16", is_fut=True,strike=None, is_CE=False))
+print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="2022-09-23", is_fut=False,strike=79.50000, is_CE=False))
+print(alice.get_instrument_for_fno(exch="CDS",symbol='USDINR', expiry_date="2022-09-28", is_fut=False,strike=79.50000, is_CE=True))
 ```
 
 ### Search for symbols

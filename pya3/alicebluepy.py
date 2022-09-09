@@ -50,7 +50,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.23"
+    version = "1.0.24"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -598,7 +598,7 @@ class Aliceblue:
         if not symbol:
             return self._error_response("Symbol is Null")
         try:
-            expiry_date=datetime.strptime(expiry_date, "%d-%m-%Y").date()
+            expiry_date=datetime.strptime(expiry_date, "%Y-%m-%d").date()
         except ValueError as e:
             return self._error_response(e)
         if type(is_CE) is bool:
