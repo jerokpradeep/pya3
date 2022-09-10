@@ -50,7 +50,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.24"
+    version = "1.0.25"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -757,7 +757,7 @@ class Aliceblue:
 
     def search_instruments(self,exchange,symbol):
         base_url=self.base_url.replace('/AliceBlueAPIService/api','')
-        scrip_Url = base_url+"DataApiService/v2/exchange/getScripForSearch"
+        scrip_Url = base_url+"DataApiService/v2/exchange/getScripForSearchAPI"
         # print(scrip_Url)
         data = {'symbol':symbol, 'exchange': [exchange]}
         # print(data)
@@ -768,7 +768,7 @@ class Aliceblue:
             inst=[]
             for i in range(len(scrip_response)):
                 # print(scrip_response[i])
-                inst.append(Instrument(scrip_response[i]['exch'],scrip_response[i]['token'],scrip_response[i]['formattedInsName'],scrip_response[i]['symbol'],'',''))
+                inst.append(Instrument(scrip_response[i]['exch'],scrip_response[i]['token'],scrip_response[i]['formattedInsName'],scrip_response[i]['symbol'],scrip_response[i]['expiry'],scrip_response[i]['lotSize']))
             return inst
 
     def start_websocket(self,socket_open_callback=None,socket_close_callback=None,socket_error_callback=None,subscription_callback=None,check_subscription_callback=None,run_in_background=False,market_depth=False):
