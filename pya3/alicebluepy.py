@@ -50,7 +50,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.25"
+    version = "1.0.26"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -503,15 +503,12 @@ class Aliceblue:
             data.append(request_data)
         # print(data)
         placeorderresp = self._post("placeorder", data)
-        if len(placeorderresp) == 1:
-            return placeorderresp[0]
-        else:
-            return placeorderresp
+        return placeorderresp
 
     def get_contract_master(self,exchange):
         if len(exchange) == 3 or exchange == 'INDICES':
             print("NOTE: Today's contract master file will be updated after 08:00 AM. Before 08:00 AM previous day contract file be downloaded.")
-            if time(8,00) <= datetime.now().time():
+            if time(8,00) <= datetime.now().time() or True:
                 url= self.base_url_c % exchange.upper()
                 response = requests.get(url)
                 with open("%s.csv"% exchange.upper(), "w") as f:
@@ -821,20 +818,28 @@ class Aliceblue:
                         self.__ws_run_forever()
 
     def get_historical(self, instrument, from_datetime, to_datetime, interval, indices=False):
-        # intervals = ["1", "2", "3", "4", "5", "10", "15", "30", "60", "120", "180", "240", "D", "1W", "1M"]
-        params = {"symbol": instrument.token,
-                  "exchange": instrument.exchange if not indices else f"{instrument.exchange}::index",
-                  "from": str(int(from_datetime.timestamp())),
-                  "to": str(int(to_datetime.timestamp())),
-                  "resolution": interval,
-                  "user": self.user_id}
-        lst = requests.get(f"https://a3.aliceblueonline.com/rest/AliceBlueAPIService/chart/history?", params=params).json()
-        df = pd.DataFrame(lst)
-        df = df.rename(columns={'t': 'datetime', 'o': 'open', 'h': 'high', 'l': 'low', 'c': 'close', 'v': 'volume'})
-        df = df[['datetime', 'open', 'high', 'low', 'close', 'volume']]
-        df["datetime"] = df["datetime"].apply(lambda x: datetime.fromtimestamp(x))
-        return df
-
+        # intervals = ["1", "D"]
+        payload = json.dumps({"token": str(instrument.token),
+                              "exchange": instrument.exchange if not indices else f"{instrument.exchange}::index",
+                              "from": str(int(from_datetime.timestamp()))+'000',
+                              "to": str(int(to_datetime.timestamp()))+'000',
+                              "resolution": interval
+                              })
+        _headers = {
+            "X-SAS-Version": "2.0",
+            "User-Agent": self._user_agent(),
+            "Authorization": self._user_authorization(),
+            'Content-Type': 'application/json'
+        }
+        lst = requests.post(self.base_url+"chart/history", data=payload,headers=_headers)
+        response=lst.json()
+        if response['stat'] == 'Not_Ok':
+            return response
+        else:
+            df = pd.DataFrame(lst.json()['result'])
+            df = df.rename(columns={'time': 'datetime'})
+            df = df[['datetime', 'open', 'high', 'low', 'close', 'volume']]
+            return df
 
 class Alice_Wrapper():
     def open_net_position(Net_position):
@@ -1197,4 +1202,3 @@ class Alice_Wrapper():
             return old_response
         else:
             return response
-

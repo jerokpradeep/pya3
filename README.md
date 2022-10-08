@@ -10,7 +10,7 @@ The HTTP calls have been converted to methods and JSON responses are wrapped int
 [//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
-* **Current Version: 1.0.25**
+* **Current Version: 1.0.26**
 
 [//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
 
@@ -134,7 +134,7 @@ print("Close position :",close_position)
 2. Order History response wrapper:
 ```commandline
 order_history_response = alice.get_order_history('')
-print(Alice_Wrapper.order_history(response_data))
+print(Alice_Wrapper.get_order_history(order_history_response))
 ```
 
 3. Balance response wrapper:
