@@ -50,7 +50,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.26"
+    version = "1.0.27"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -191,7 +191,7 @@ class Aliceblue:
             try:
                 response = requests.post(method, json=data, headers=_headers, )
             except (requests.ConnectionError, requests.Timeout) as exception:
-                return {'stat':'Not_ok','emsg':'Please Check the Internet connection.','encKey':None}
+                return {'stat':'Not_ok','emsg':exception,'encKey':None}
             if response.status_code == 200:
                 return json.loads(response.text)
             else:
@@ -202,8 +202,12 @@ class Aliceblue:
             try:
                 response = requests.get(method, json=data, headers=_headers)
             except (requests.ConnectionError, requests.Timeout) as exception:
-                return {'stat':'Not_ok','emsg':'Please Check the Internet connection.','encKey':None}
-            return json.loads(response.text)
+                return {'stat':'Not_ok','emsg':exception,'encKey':None}
+            if response.status_code == 200:
+                return json.loads(response.text)
+            else:
+                emsg=str(response.status_code)+' - '+response.reason
+                return {'stat':'Not_ok','emsg':emsg,'encKey':None}
 
     def _error_response(self,message):
         return {"stat":"Not_ok","emsg":message}
