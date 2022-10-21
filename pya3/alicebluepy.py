@@ -50,7 +50,7 @@ def encrypt_string(hashing):
 class Aliceblue:
     base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.27"
+    version = "1.0.28"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
@@ -356,7 +356,11 @@ class Aliceblue:
         if (instrument.exchange == 'NFO' or instrument.exchange == 'MCX')and (product_type.value == 'CNC'):
             pCode = "NRML"
         else:
-            pCode = product_type.value
+            if product_type.value == 'BO':
+                pCode = "MIS"
+                complexty = "BO"
+            else:
+                pCode = product_type.value
         price = price
         prctyp = order_type.value
         qty = quantity
