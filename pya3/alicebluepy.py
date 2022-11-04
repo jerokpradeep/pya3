@@ -48,9 +48,9 @@ def encrypt_string(hashing):
     return sha
 
 class Aliceblue:
-    base_url = "https://a3.aliceblueonline.com/rest/AliceBlueAPIService/api/"
+    base_url = "https://ant.aliceblueonline.com/rest/AliceBlueAPIService/api/"
     api_name = "Codifi API Connect - Python Lib "
-    version = "1.0.28"
+    version = "1.0.29"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
 
     # Products
