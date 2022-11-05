@@ -7,14 +7,10 @@ Alice Blue Python library provides an easy to use wrapper over the HTTPS APIs.
 
 The HTTP calls have been converted to methods and JSON responses are wrapped into Python-compatible objects.
 
-[//]: # (Websocket connections are handled automatically within the library.)
 
 * __Author: [CodiFi](https://github.com/jerokpradeep)__
 * **Current Version: 1.0.29**
 
-[//]: # (* [Unofficed]&#40;https://www.unofficed.com/&#41; is strategic partner of Alice Blue responsible for this git.)
-
-[//]: # (* Alice Blue API trading is free for [Unofficed]&#40;https://www.unofficed.com/&#41; members. Follow [this]&#40;https://unofficed.com/alice-blue/&#41; to get API free.)
 
 ## Installation
 
@@ -34,16 +30,6 @@ pip --no-cache-dir install --upgrade pya3
 
 Python >=3.7
 
-[//]: # (Also, you need the following modules:)
-
-[//]: # ()
-[//]: # (* `websocket_client`)
-
-[//]: # (* `requests`)
-
-[//]: # (* `bs4`)
-
-[//]: # (The modules can also be installed using `pip`)
 
 ## Getting started with API
 
@@ -52,7 +38,7 @@ There is only two class in the whole library: `AliceBlue` and `Alice_Wrapper`. T
 With a Session ID, you can instantiate an AliceBlue object. Ideally you only need to create a Session ID once every time login the trading account with password. After you have the Session ID, you can store it
 separately for re-use.
 
-#### NOTE: User should Login through Web(a3.aliceblueonline.com) or SSO or Mobile at least once in a day, before connecting the API
+#### NOTE: User should Login through Web(ant.aliceblueonline.com) or SSO or Mobile at least once in a day, before connecting the API
 
 ### Rate Limits
 The following are the rate limits for API users:
@@ -65,35 +51,6 @@ The original REST API that this SDK is based on is available online.
    [Alice Blue API REST documentation](https://v2api.aliceblueonline.com)
 
 ## Using the API
-
-[//]: # (### Logging)
-
-[//]: # (The whole library is equipped with python's `logging` module for debugging. If more debug information is needed, enable logging using the following code.)
-
-[//]: # ()
-[//]: # (```python)
-
-[//]: # (import logging)
-
-[//]: # (logging.basicConfig&#40;level=logging.DEBUG&#41;)
-
-[//]: # (```)
-
-[//]: # (### Get api_secret)
-
-[//]: # (api_secret is unique for each and every account. You need to enable api trading and get api_secret from alice blue.)
-
-[//]: # (1. Please [contact]&#40;https://www.aliceblueonline.com/contact-us/&#41; alice blue to get access to api.)
-
-[//]: # (2. After you get a response from alice blue, login to [developer console]&#40;https://develop-api.aliceblueonline.com/dashboard&#41;)
-
-[//]: # (3. Click on 'Create App')
-
-[//]: # (4. Enter 'App Name' as you like. Enter 'Redirect URI' as `https://ant.aliceblueonline.com/plugin/callback`)
-
-[//]: # (5. Click on 'Create App')
-
-[//]: # (6. Copy the 'App Id' and 'App Secret'. You will need these to generate access token.)
 
 ### Get a Session ID
 1. Import pya3
@@ -627,13 +584,11 @@ Product types indicate the complexity of the order you want to place. Valid prod
 * `ProductType.CoverOrder` - Cover order
 * `ProductType.BracketOrder` - One cancels other order. Also known as bracket order
 
-## Example strategy using alice blue API
-This strategy generates a buy signal when 5-EMA > 20-EMA (golden cross) or a sell signal when 5-EMA < 20-EMA (death cross).
 
 ## Read this before creating an issue
 Before creating an issue in this library, please follow the following steps.
 
-1. Search the problem you are facing is already asked by someone else. There might be some issues already there, either solved/unsolved related to your problem. Go to [issues](https://github.com/jerokpradeep)
+1. Search the problem you are facing is already asked by someone else. There might be some issues already there, either solved/unsolved related to your problem. Go to [issues](https://github.com/jerokpradeep/pya3/issues)
 2. If you feel your problem is not asked by anyone or no issues are related to your problem, then create a new issue.
 3. Describe your problem in detail while creating the issue. If you don't have time to detail/describe the problem you are facing, assume that I also won't be having time to respond to your problem.
 4. Post a sample code of the problem you are facing. If I copy paste the code directly from issue, I should be able to reproduce the problem you are facing.
@@ -642,4 +597,4 @@ Before creating an issue in this library, please follow the following steps.
 7. Post the results of print() functions also in the issue.
 8. Use the insert code feature of github to inset code and print outputs, so that the code is displayed neat. ![image](https://user-images.githubusercontent.com/38440742/85207234-4dc96f80-b2f5-11ea-990c-df013dd69cf2.png)
 9. If you have multiple lines of code, use triple grave accent ( ``` ) to insert multiple lines of code. [Example:](https://docs.github.com/en/github/writing-on-github/creating-and-highlighting-code-blocks) ![image](https://user-images.githubusercontent.com/38440742/89105781-343a3e00-d3f2-11ea-9f86-92dda88aa5bf.png)
-10. [Here](https://github.com/jerokpradeep) is an example of what I'm expecting while you are creating an issue.
+
