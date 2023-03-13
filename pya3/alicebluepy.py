@@ -351,7 +351,7 @@ class Aliceblue:
             complexty = "AMO"
         else:
             complexty = "regular"
-        discqty=0
+        discqty=qtydisc
         exch=instrument.exchange
         if (instrument.exchange == 'NFO' or instrument.exchange == 'MCX')and (product_type.value == 'CNC'):
             pCode = "NRML"
@@ -423,7 +423,7 @@ class Aliceblue:
 
         if trigger_price is not None and not isinstance(trigger_price, float):
             raise TypeError("Optional parameter trigger_price not of type float")
-        data = {'discqty': 0,
+        data = {'discqty': qtydisc,
                 'exch': instrument.exchange,
                 # 'filledQuantity': filledQuantity,
                 'nestOrderNumber': order_id,
@@ -470,7 +470,7 @@ class Aliceblue:
                 complexty = "AMO"
             else:
                 complexty = "regular"
-            discqty = 0
+            discqty = qtydisc
             exch = order_data['instrument'].exchange
             if order_data['instrument'].exchange == 'NFO' and order_data['product_type'].value == 'CNC':
                 pCode = "NRML"
