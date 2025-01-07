@@ -56,6 +56,8 @@ class Aliceblue:
     api_name = "Codifi API Connect - Python Lib "
     version = "1.0.29"
     base_url_c = "https://v2api.aliceblueonline.com/restpy/static/contract_master/%s.csv"
+    websocket_url = "wss://ant.aliceblueonline.com/order-notify/websocket"
+    create_websocket_url = "https://ant.aliceblueonline.com/order-notify/ws/createWsToken"
 
     # Products
     PRODUCT_INTRADAY = "MIS"
@@ -908,6 +910,73 @@ class Aliceblue:
             })
         response = self._post("basket_margin", basket_data)
         return response
+
+    def create_websocket_token(self):
+        user_token = self.get_session_id()
+        session_ID = user_token['sessionID']
+        headers = {
+            'Authorization': 'Bearer Token' + ' ' + session_ID,
+            'Content-Type': 'application/json'
+        }
+        response = requests.request("GET", self.create_websocket_url, headers=headers)
+        parse_data = response.json()
+        websocket_Token = parse_data['result'][0]['orderToken']
+        return websocket_Token
+
+    def connect_webcoscket(self, userid):
+
+        ws_token = self.create_websocket_token()
+        print("WebSocket connection established.")
+        headers = {
+            'Content-Type': 'application/json'
+        }
+        payload = {
+            "orderToken": ws_token,
+            "userId": userid
+        }
+        session_data = json.dumps(payload)
+
+        def on_message(ws, message):
+            print(message)
+
+        def on_error(ws, error):
+            if type(ws) is not websocket.WebSocketApp:
+                error = ws
+            if self.__on_error:
+                self.__on_error(error)
+
+        def on_close(ws, close_status_code, close_msg):
+            self.ws_connection = False
+            if self.__on_disconnect:
+                self.__on_disconnect()
+            print(f"WebSocket Closed. Status code: {close_status_code}, Reason: {close_msg}")
+
+        def on_open(ws):
+            print("WebSocket Connection Opened")
+            ws.send(session_data)
+            threading.Thread(target=heart_beat_connection, args=(ws,), daemon=True).start()
+
+        def heart_beat_connection(ws):
+            heartbeat_Flag = True
+            while heartbeat_Flag:
+                payload = {
+                    "heartbeat": "h",
+                    "userId": userid
+                }
+                hearbeat_data = json.dumps(payload)
+                ws.send(hearbeat_data)
+                time.sleep(55)
+
+        # Create the WebSocket connection
+        ws = websocket.WebSocketApp(
+            self.websocket_url,
+            on_message=on_message,
+            on_error=on_error,
+            on_close=on_close,
+            on_open=on_open,
+            header=headers  # Pass headers if required
+        )
+        ws.run_forever()
 
 
 class Alice_Wrapper():
