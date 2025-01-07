@@ -132,6 +132,7 @@ class Aliceblue:
         "orderhistory": "placeOrder/orderHistory",
         "cancelorder": "placeOrder/cancelOrder",
         "profile": "customer/accountDetails",
+        "basket_margin": "basket/getMargin",
         # Funds
         "fundsrecord": "limits/getRmsLimits",
         # Websockey
