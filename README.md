@@ -584,6 +584,22 @@ Product types indicate the complexity of the order you want to place. Valid prod
 * `ProductType.CoverOrder` - Cover order
 * `ProductType.BracketOrder` - One cancels other order. Also known as bracket order
 
+### Get Basket Margin
+
+Get margin-used and margin-used-trade for placed orders
+
+orders = [{
+  "exchange": "NSE",
+  "tradingSymbol": "INFY-EQ",
+  "price": "1999.70",
+  "qty" : "1",
+  "product": "MIS",
+  "priceType": "L",
+  "triggerPrice" : "1995",
+  "transType" : "B"
+  }]
+
+print(alice.basket_margin(orders))
 
 ## Read this before creating an issue
 Before creating an issue in this library, please follow the following steps.
