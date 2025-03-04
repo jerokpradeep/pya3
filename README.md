@@ -587,7 +587,7 @@ Product types indicate the complexity of the order you want to place. Valid prod
 ### Get Basket Margin
 
 Get margin-used and margin-used-trade for placed orders
-
+```
 orders = [{
   "exchange": "NSE",
   "tradingSymbol": "INFY-EQ",
@@ -600,6 +600,7 @@ orders = [{
   }]
 
 print(alice.basket_margin(orders))
+```
 
 ## Read this before creating an issue
 Before creating an issue in this library, please follow the following steps.
