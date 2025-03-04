@@ -598,7 +598,8 @@ orders = [{
   "triggerPrice" : "1995",
   "transType" : "B"
   }]
-
+```
+```python
 print(alice.basket_margin(orders))
 ```
 
